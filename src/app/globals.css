@@ -123,3 +123,31 @@ body {
     transform: translateY(0) scale(1);
   }
 }
+
+.lightbox-backdrop {
+  animation: lightboxFadeIn 0.22s ease both;
+}
+
+.lightbox-photo-frame {
+  animation: lightboxPopIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes lightboxFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes lightboxPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

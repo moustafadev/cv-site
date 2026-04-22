@@ -37,13 +37,6 @@ export function ContactForm({locale}: ContactFormProps) {
       <button className="rounded-md bg-brand-500 px-4 py-2 font-medium text-white hover:bg-brand-700" type="submit">
         {locale === "en" ? "Send" : "Отправить"}
       </button>
-      {!action ? (
-        <p className="text-xs text-amber-400">
-          {locale === "en"
-            ? "Set NEXT_PUBLIC_FORMSPREE_URL in .env.local to enable sending."
-            : "Укажите NEXT_PUBLIC_FORMSPREE_URL в .env.local для отправки формы."}
-        </p>
-      ) : null}
     </form>
   );
 }

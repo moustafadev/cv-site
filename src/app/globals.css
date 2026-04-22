@@ -13,3 +13,113 @@ body {
 .section-title {
   @apply mb-5 text-2xl font-semibold text-brand-100;
 }
+
+.glass-card {
+  @apply rounded-2xl border border-slate-800/90 bg-slate-900/60 backdrop-blur;
+}
+
+.fade-up {
+  animation: fadeUp 0.7s ease both;
+}
+
+.fade-up-delay-1 {
+  animation: fadeUp 0.7s ease 0.12s both;
+}
+
+.fade-up-delay-2 {
+  animation: fadeUp 0.7s ease 0.24s both;
+}
+
+.hover-lift {
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-6px);
+  border-color: rgb(56 189 248 / 0.7);
+  box-shadow: 0 12px 35px rgb(14 165 233 / 0.15);
+}
+
+.pulse-dot {
+  position: relative;
+}
+
+.pulse-dot::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border-radius: 9999px;
+  border: 1px solid rgb(34 197 94 / 0.55);
+  animation: pulseRing 1.8s ease-out infinite;
+}
+
+.service-icon {
+  transition: transform 0.25s ease;
+}
+
+.hover-lift:hover .service-icon {
+  transform: scale(1.08) rotate(-4deg);
+}
+
+.profile-photo-wrap {
+  position: relative;
+  animation: photoReveal 0.9s ease 0.2s both;
+}
+
+.profile-photo-wrap::before {
+  content: "";
+  position: absolute;
+  inset: -12px;
+  border-radius: 1.5rem;
+  background: radial-gradient(circle at 30% 30%, rgb(56 189 248 / 0.24), rgb(14 165 233 / 0));
+  filter: blur(8px);
+  z-index: 0;
+}
+
+.profile-photo {
+  position: relative;
+  z-index: 1;
+  border-radius: 1.25rem;
+  border: 1px solid rgb(51 65 85);
+  box-shadow: 0 24px 48px rgb(2 8 23 / 0.45);
+  transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+}
+
+.profile-photo-wrap:hover .profile-photo {
+  transform: translateY(-6px) scale(1.015);
+  border-color: rgb(56 189 248 / 0.8);
+  box-shadow: 0 30px 55px rgb(14 165 233 / 0.2);
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseRing {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+@keyframes photoReveal {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

@@ -5,6 +5,17 @@ import {useCallback, useEffect, useState} from "react";
 type RefRow = {host: string; count: number};
 type RecentRow = {t: number; path: string; locale: string; referrer: string; refHost: string; ua: string};
 
+type AnalyticsDiagnostics = {
+  nodeEnv: string;
+  memoryDev: boolean;
+  d1: {
+    CLOUDFLARE_ACCOUNT_ID: boolean;
+    CLOUDFLARE_D1_DATABASE_ID: boolean;
+    CLOUDFLARE_API_TOKEN: boolean;
+    ready: boolean;
+  };
+};
+
 type StatsPayload = {
   ok: boolean;
   configured?: boolean;
@@ -13,6 +24,7 @@ type StatsPayload = {
     byRefHost: RefRow[];
     recent: RecentRow[];
   };
+  diagnostics?: AnalyticsDiagnostics;
 };
 
 export default function AdminPage() {
@@ -142,63 +154,56 @@ export default function AdminPage() {
 
         {authed && data?.configured === false ? (
           <div className="mt-8 space-y-6 rounded-xl border border-amber-800/80 bg-amber-950/40 p-4 text-sm text-amber-100">
-            <p className="font-medium">Analytics storage not configured</p>
+            <p className="font-medium">Analytics storage not configured (D1)</p>
             <p className="text-amber-200/90">
-              Pick <strong>one</strong> backend. Set variables in <code className="rounded bg-slate-900 px-1">.env.local</code>{" "}
-              or in <strong>Cloudflare Pages → Settings → Variables</strong>, then restart / redeploy.
+              Set the three Cloudflare variables in <code className="rounded bg-slate-900 px-1">.env.local</code> or{" "}
+              <strong>Cloudflare Pages → Settings → Environment variables</strong> (Production), then restart locally or{" "}
+              <strong>redeploy</strong>. Names must match exactly (case-sensitive).
             </p>
 
-            <div>
-              <p className="font-medium text-sky-200">Option A — Cloudflare D1 (SQLite, good for analytics)</p>
-              <ol className="mt-2 list-decimal space-y-2 pl-5 text-amber-200/95">
-                <li>
-                  <strong>Workers &amp; Pages</strong> → <strong>D1</strong> → open your database (e.g.{" "}
-                  <code className="rounded bg-slate-900 px-1">d1-template-database</code> is only the label).
-                </li>
-                <li>
-                  Copy the <strong>Database ID</strong> (UUID) → <code className="rounded bg-slate-900 px-1">CLOUDFLARE_D1_DATABASE_ID</code>.
-                </li>
-                <li>
-                  <strong>Overview</strong> → <strong>Account ID</strong> → <code className="rounded bg-slate-900 px-1">CLOUDFLARE_ACCOUNT_ID</code>.
-                </li>
-                <li>
-                  <strong>API Tokens</strong> → include <strong>Account D1 → Edit</strong> (and read) →{" "}
-                  <code className="rounded bg-slate-900 px-1">CLOUDFLARE_API_TOKEN</code>. The app creates the{" "}
-                  <code className="rounded bg-slate-900 px-1">cv_views</code> table automatically on first write.
-                </li>
-              </ol>
-            </div>
+            {data.diagnostics ? (
+              <div className="rounded-lg border border-slate-700 bg-slate-950/60 p-3 text-slate-200">
+                <p className="mb-2 font-medium text-slate-100">What the server sees (no secret values)</p>
+                <p className="mb-2 text-xs text-slate-500">
+                  NODE_ENV: <code className="text-slate-400">{data.diagnostics.nodeEnv || "—"}</code>
+                </p>
+                <ul className="space-y-0.5 font-mono text-xs">
+                  <li>CLOUDFLARE_ACCOUNT_ID: {data.diagnostics.d1.CLOUDFLARE_ACCOUNT_ID ? "✓" : "✗"}</li>
+                  <li>CLOUDFLARE_D1_DATABASE_ID: {data.diagnostics.d1.CLOUDFLARE_D1_DATABASE_ID ? "✓" : "✗"}</li>
+                  <li>CLOUDFLARE_API_TOKEN: {data.diagnostics.d1.CLOUDFLARE_API_TOKEN ? "✓" : "✗"}</li>
+                  <li className="text-slate-400">D1 ready: {data.diagnostics.d1.ready ? "yes" : "no"}</li>
+                </ul>
+                <p className="mt-2 text-xs text-slate-500">
+                  Dev RAM mode: {data.diagnostics.memoryDev ? "on" : "off"} (<code className="text-slate-400">CV_ANALYTICS_MEMORY=1</code> + dev only)
+                </p>
+              </div>
+            ) : null}
 
             <div>
-              <p className="font-medium text-sky-200">Option B — Cloudflare KV (key-value)</p>
+              <p className="font-medium text-sky-200">Cloudflare D1</p>
               <ol className="mt-2 list-decimal space-y-2 pl-5 text-amber-200/95">
                 <li>
-                  <strong>KV</strong> → create namespace → <code className="rounded bg-slate-900 px-1">CLOUDFLARE_KV_NAMESPACE_ID</code> + same{" "}
-                  <code className="rounded bg-slate-900 px-1">CLOUDFLARE_ACCOUNT_ID</code> / <code className="rounded bg-slate-900 px-1">CLOUDFLARE_API_TOKEN</code>{" "}
-                  (token needs <strong>Workers KV Storage → Edit</strong>). Used only if D1 is <em>not</em> set.
+                  <strong>Workers &amp; Pages</strong> → <strong>D1</strong> → open your database (the label is not the ID).
                 </li>
-              </ol>
-            </div>
-
-            <div>
-              <p className="font-medium text-sky-200">Option C — Upstash Redis (external)</p>
-              <ol className="mt-2 list-decimal space-y-2 pl-5 text-amber-200/95">
                 <li>
-                  <a href="https://console.upstash.com/" target="_blank" rel="noreferrer" className="text-sky-300 underline hover:text-sky-200">
-                    Upstash
-                  </a>{" "}
-                  → Redis → REST API → <code className="rounded bg-slate-900 px-1">UPSTASH_REDIS_REST_URL</code> +{" "}
-                  <code className="rounded bg-slate-900 px-1">UPSTASH_REDIS_REST_TOKEN</code>.
+                  <strong>Database ID</strong> (UUID) → <code className="rounded bg-slate-900 px-1">CLOUDFLARE_D1_DATABASE_ID</code>.
+                </li>
+                <li>
+                  <strong>Account ID</strong> → <code className="rounded bg-slate-900 px-1">CLOUDFLARE_ACCOUNT_ID</code>.
+                </li>
+                <li>
+                  API token with <strong>Account → D1 → Edit</strong> → <code className="rounded bg-slate-900 px-1">CLOUDFLARE_API_TOKEN</code>. Table{" "}
+                  <code className="rounded bg-slate-900 px-1">cv_views</code> is created on first successful write.
                 </li>
               </ol>
             </div>
 
             <p className="text-amber-200/85">
-              Until then, <code className="rounded bg-slate-900 px-1">POST /api/cv/track</code> returns 503.
+              Until D1 is ready, <code className="rounded bg-slate-900 px-1">POST /api/cv/track</code> returns 503.
             </p>
             <p className="text-slate-300">
               <strong>Local only:</strong> <code className="rounded bg-slate-900 px-1">CV_ANALYTICS_MEMORY=1</code> in{" "}
-              <code className="rounded bg-slate-900 px-1">.env.local</code> (dev) — RAM only, resets on server restart.
+              <code className="rounded bg-slate-900 px-1">.env.local</code> (dev) — RAM only, resets when the dev server restarts.
             </p>
           </div>
         ) : null}

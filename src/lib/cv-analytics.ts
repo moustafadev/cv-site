@@ -1,10 +1,4 @@
 import {d1GetStats, d1RecordView, getCfD1Config} from "@/lib/cv-analytics-d1";
-import {cfKvGetStats, cfKvRecordView, getCfKvConfig} from "@/lib/cv-analytics-cloudflare-kv";
-import {redis} from "@/lib/redis";
-
-const TOTAL_KEY = "cv:total_views";
-const REFHOST_KEY = "cv:refhost_count";
-const RECENT_KEY = "cv:recent";
 
 function useMemoryStore(): boolean {
   return process.env.NODE_ENV === "development" && process.env.CV_ANALYTICS_MEMORY === "1";
@@ -30,7 +24,21 @@ function safeRefHostField(host: string): string {
 }
 
 export function isCvAnalyticsConfigured(): boolean {
-  return useMemoryStore() || getCfD1Config() !== null || getCfKvConfig() !== null || redis !== null;
+  return useMemoryStore() || getCfD1Config() !== null;
+}
+
+/** Safe booleans for /admin — shows which env vars the server sees (no values). */
+export function getAnalyticsDiagnostics() {
+  return {
+    nodeEnv: process.env.NODE_ENV ?? "",
+    memoryDev: useMemoryStore(),
+    d1: {
+      CLOUDFLARE_ACCOUNT_ID: Boolean(process.env.CLOUDFLARE_ACCOUNT_ID?.trim()),
+      CLOUDFLARE_D1_DATABASE_ID: Boolean(process.env.CLOUDFLARE_D1_DATABASE_ID?.trim()),
+      CLOUDFLARE_API_TOKEN: Boolean(process.env.CLOUDFLARE_API_TOKEN?.trim()),
+      ready: getCfD1Config() !== null
+    }
+  };
 }
 
 export async function recordCvView(input: {
@@ -59,41 +67,22 @@ export async function recordCvView(input: {
   }
 
   const d1 = getCfD1Config();
-  if (d1) {
-    try {
-      const id = globalThis.crypto.randomUUID();
-      await d1RecordView(d1, {
-        id,
-        t: row.t,
-        path: row.path,
-        locale: row.locale,
-        referrer: row.referrer,
-        refHost: row.refHost,
-        ua: row.ua
-      });
-      return {ok: true};
-    } catch {
-      return {ok: false, reason: "cloudflare_d1_failed"};
-    }
+  if (!d1) return {ok: false, reason: "d1_not_configured"};
+  try {
+    const id = globalThis.crypto.randomUUID();
+    await d1RecordView(d1, {
+      id,
+      t: row.t,
+      path: row.path,
+      locale: row.locale,
+      referrer: row.referrer,
+      refHost: row.refHost,
+      ua: row.ua
+    });
+    return {ok: true};
+  } catch {
+    return {ok: false, reason: "cloudflare_d1_failed"};
   }
-
-  const cf = getCfKvConfig();
-  if (cf) {
-    try {
-      await cfKvRecordView(cf, row);
-      return {ok: true};
-    } catch {
-      return {ok: false, reason: "cloudflare_kv_failed"};
-    }
-  }
-
-  if (!redis) return {ok: false, reason: "analytics_not_configured"};
-  const payload = JSON.stringify(row);
-  await redis.incr(TOTAL_KEY);
-  await redis.hincrby(REFHOST_KEY, refHost, 1);
-  await redis.lpush(RECENT_KEY, payload);
-  await redis.ltrim(RECENT_KEY, 0, 499);
-  return {ok: true};
 }
 
 export type CvStats = {
@@ -128,35 +117,10 @@ export async function getCvStats(): Promise<CvStats | null> {
     return buildMemoryStats();
   }
   const d1 = getCfD1Config();
-  if (d1) {
-    try {
-      return await d1GetStats(d1);
-    } catch {
-      return {totalViews: 0, byRefHost: [], recent: []};
-    }
+  if (!d1) return null;
+  try {
+    return await d1GetStats(d1);
+  } catch {
+    return {totalViews: 0, byRefHost: [], recent: []};
   }
-  const cf = getCfKvConfig();
-  if (cf) {
-    try {
-      return await cfKvGetStats(cf);
-    } catch {
-      return {totalViews: 0, byRefHost: [], recent: []};
-    }
-  }
-  if (!redis) return null;
-  const totalRaw = await redis.get<string | number>(TOTAL_KEY);
-  const totalViews = typeof totalRaw === "number" ? totalRaw : Number(totalRaw || 0);
-  const rawMap = await redis.hgetall<Record<string, string>>(REFHOST_KEY);
-  const byRefHost = Object.entries(rawMap || {})
-    .map(([host, count]) => ({host, count: Number(count) || 0}))
-    .sort((a, b) => b.count - a.count);
-  const recentRaw = await redis.lrange(RECENT_KEY, 0, 99);
-  const recent = recentRaw.map((line) => {
-    try {
-      return JSON.parse(line) as CvStats["recent"][number];
-    } catch {
-      return {t: 0, path: "", locale: "", referrer: "", refHost: "", ua: ""};
-    }
-  });
-  return {totalViews, byRefHost, recent};
 }

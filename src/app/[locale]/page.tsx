@@ -1,3 +1,4 @@
+import Image from "next/image";
 import {notFound} from "next/navigation";
 import {setRequestLocale} from "next-intl/server";
 import {ContactForm} from "@/components/ContactForm";
@@ -186,59 +187,72 @@ export default async function Home({params}: {params: Promise<{locale: string}>}
   return (
     <main className="container-page space-y-10 py-10">
       <section className="glass-card fade-up overflow-hidden p-6 md:p-9">
-        <div>
-          <div className="mb-5 inline-flex rounded-full border border-sky-700/70 bg-sky-900/30 px-3 py-1 text-xs text-sky-200">
-            {isEn ? "Available for freelance" : "Открыт к фрилансу"}
+        <div className="grid items-center gap-6 md:grid-cols-[1.2fr_0.8fr]">
+          <div>
+            <div className="mb-5 inline-flex rounded-full border border-sky-700/70 bg-sky-900/30 px-3 py-1 text-xs text-sky-200">
+              {isEn ? "Available for freelance" : "Открыт к фрилансу"}
+            </div>
+            <h1 className="text-4xl font-bold leading-tight md:text-5xl">
+              {isEn ? "Flutter Developer" : "Flutter-разработчик"}
+              <span className="block text-sky-300">{isEn ? "iOS & Android" : "iOS и Android"}</span>
+            </h1>
+            <p className="mt-4 max-w-2xl text-slate-300">
+              {isEn
+                ? "4+ years building production apps in fintech, fitness, healthcare and logistics with BLE, WebRTC and clean architecture."
+                : "4+ года создаю продакшн-приложения для fintech, fitness, healthcare и logistics с BLE, WebRTC и clean architecture."}
+            </p>
+            <div className="mt-4 flex items-center gap-2 text-sm text-emerald-400">
+              <span className="pulse-dot inline-block h-2 w-2 rounded-full bg-emerald-400" />
+              {isEn ? "Open to new projects" : "Открыт для новых проектов"}
+            </div>
+            <div className="mt-5 flex flex-wrap gap-2 text-sm text-slate-300">
+              {contacts.map((item) => (
+                <span key={item} className="rounded-full border border-slate-700 px-3 py-1">
+                  {item}
+                </span>
+              ))}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-4 text-sm">
+              <a
+                href="https://github.com/moustafadev"
+                target="_blank"
+                rel="noreferrer"
+                className="text-sky-300 transition hover:text-sky-200"
+              >
+                GitHub
+              </a>
+              <a
+                href="https://www.linkedin.com/in/mostafa-omar-418622170"
+                target="_blank"
+                rel="noreferrer"
+                className="text-sky-300 transition hover:text-sky-200"
+              >
+                LinkedIn
+              </a>
+            </div>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <a href="#projects" className="rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-white">
+                {isEn ? "View projects" : "Смотреть проекты"}
+              </a>
+              <a
+                href={isEn ? "/Mostafa_Omar_CV_EN.pdf" : "/Mostafa_Omar_CV_RU.pdf"}
+                download
+                className="rounded-md border border-slate-600 px-4 py-2 text-sm transition hover:border-sky-400 hover:text-sky-200"
+              >
+                {isEn ? "Download CV" : "Скачать CV"}
+              </a>
+            </div>
           </div>
-          <h1 className="text-4xl font-bold leading-tight md:text-5xl">
-            {isEn ? "Flutter Developer" : "Flutter-разработчик"}
-            <span className="block text-sky-300">{isEn ? "iOS & Android" : "iOS и Android"}</span>
-          </h1>
-          <p className="mt-4 max-w-2xl text-slate-300">
-            {isEn
-              ? "4+ years building production apps in fintech, fitness, healthcare and logistics with BLE, WebRTC and clean architecture."
-              : "4+ года создаю продакшн-приложения для fintech, fitness, healthcare и logistics с BLE, WebRTC и clean architecture."}
-          </p>
-          <div className="mt-4 flex items-center gap-2 text-sm text-emerald-400">
-            <span className="pulse-dot inline-block h-2 w-2 rounded-full bg-emerald-400" />
-            {isEn ? "Open to new projects" : "Открыт для новых проектов"}
-          </div>
-          <div className="mt-5 flex flex-wrap gap-2 text-sm text-slate-300">
-            {contacts.map((item) => (
-              <span key={item} className="rounded-full border border-slate-700 px-3 py-1">
-                {item}
-              </span>
-            ))}
-          </div>
-          <div className="mt-4 flex flex-wrap gap-4 text-sm">
-            <a
-              href="https://github.com/moustafadev"
-              target="_blank"
-              rel="noreferrer"
-              className="text-sky-300 transition hover:text-sky-200"
-            >
-              GitHub
-            </a>
-            <a
-              href="https://www.linkedin.com/in/mostafa-omar-418622170"
-              target="_blank"
-              rel="noreferrer"
-              className="text-sky-300 transition hover:text-sky-200"
-            >
-              LinkedIn
-            </a>
-          </div>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <a href="#projects" className="rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-white">
-              {isEn ? "View projects" : "Смотреть проекты"}
-            </a>
-            <a
-              href={isEn ? "/Mostafa_Omar_CV_EN.pdf" : "/Mostafa_Omar_CV_RU.pdf"}
-              download
-              className="rounded-md border border-slate-600 px-4 py-2 text-sm transition hover:border-sky-400 hover:text-sky-200"
-            >
-              {isEn ? "Download CV" : "Скачать CV"}
-            </a>
+
+          <div className="profile-photo-wrap mx-auto md:ml-auto md:mr-0">
+            <Image
+              src="/profile-mostafa.png"
+              alt={isEn ? "Mostafa Omar portrait" : "Фото Мустафы Омара"}
+              width={260}
+              height={260}
+              priority
+              className="profile-photo h-auto w-full max-w-[170px] md:max-w-[210px]"
+            />
           </div>
         </div>
       </section>

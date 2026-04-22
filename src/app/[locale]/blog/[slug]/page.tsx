@@ -1,6 +1,7 @@
 import {notFound} from "next/navigation";
 import {MDXRemote} from "next-mdx-remote/rsc";
 import {setRequestLocale} from "next-intl/server";
+import {isLocale} from "@/i18n/routing";
 import {getPostBySlug, getPosts} from "@/lib/posts";
 
 export function generateStaticParams() {
@@ -12,9 +13,10 @@ export function generateStaticParams() {
 export default async function BlogPost({
   params
 }: {
-  params: Promise<{locale: "en" | "ru"; slug: string}>;
+  params: Promise<{locale: string; slug: string}>;
 }) {
   const {locale, slug} = await params;
+  if (!isLocale(locale)) notFound();
   setRequestLocale(locale);
   try {
     const {content, data} = getPostBySlug(slug);

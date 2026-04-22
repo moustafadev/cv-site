@@ -1,10 +1,13 @@
 import Link from "next/link";
+import {notFound} from "next/navigation";
 import {setRequestLocale} from "next-intl/server";
 import {ContactForm} from "@/components/ContactForm";
+import {isLocale} from "@/i18n/routing";
 import {getPosts} from "@/lib/posts";
 
-export default async function Home({params}: {params: Promise<{locale: "en" | "ru"}>}) {
+export default async function Home({params}: {params: Promise<{locale: string}>}) {
   const {locale} = await params;
+  if (!isLocale(locale)) notFound();
   setRequestLocale(locale);
   const isEn = locale === "en";
   const posts = getPosts(locale);

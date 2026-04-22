@@ -1,5 +1,5 @@
 import {notFound} from "next/navigation";
-import {MDXRemote} from "next-mdx-remote/rsc";
+import ReactMarkdown from "react-markdown";
 import {setRequestLocale} from "next-intl/server";
 import {isLocale} from "@/i18n/routing";
 import {getPostBySlug, getPosts} from "@/lib/posts";
@@ -27,7 +27,7 @@ export default async function BlogPost({
         <article className="prose prose-invert max-w-none">
           <h1>{data.title as string}</h1>
           <p>{data.date as string}</p>
-          <MDXRemote source={content} />
+          <ReactMarkdown>{content}</ReactMarkdown>
         </article>
       </main>
     );

@@ -10,18 +10,19 @@ export default async function LocaleLayout({
   params
 }: {
   children: React.ReactNode;
-  params: {locale: "en" | "ru"};
+  params: Promise<{locale: "en" | "ru"}>;
 }) {
-  setRequestLocale(params.locale);
+  const {locale} = await params;
+  setRequestLocale(locale);
   const messages = await getMessages();
 
   return (
-    <html lang={params.locale}>
+    <html lang={locale}>
       <body>
         <NextIntlClientProvider messages={messages}>
           <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/85 backdrop-blur">
             <div className="container-page flex items-center justify-between py-3">
-              <a href={`/${params.locale}`} className="font-semibold text-brand-100">
+              <a href={`/${locale}`} className="font-semibold text-brand-100">
                 Mostafa Omar
               </a>
               <LanguageSwitcher />

@@ -9,11 +9,16 @@ export function generateStaticParams() {
   );
 }
 
-export default function BlogPost({params}: {params: {locale: "en" | "ru"; slug: string}}) {
-  setRequestLocale(params.locale);
+export default async function BlogPost({
+  params
+}: {
+  params: Promise<{locale: "en" | "ru"; slug: string}>;
+}) {
+  const {locale, slug} = await params;
+  setRequestLocale(locale);
   try {
-    const {content, data} = getPostBySlug(params.slug);
-    if (data.locale !== params.locale) return notFound();
+    const {content, data} = getPostBySlug(slug);
+    if (data.locale !== locale) return notFound();
 
     return (
       <main className="container-page py-10">

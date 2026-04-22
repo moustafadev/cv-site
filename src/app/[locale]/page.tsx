@@ -3,10 +3,11 @@ import {setRequestLocale} from "next-intl/server";
 import {ContactForm} from "@/components/ContactForm";
 import {getPosts} from "@/lib/posts";
 
-export default function Home({params}: {params: {locale: "en" | "ru"}}) {
-  setRequestLocale(params.locale);
-  const isEn = params.locale === "en";
-  const posts = getPosts(params.locale);
+export default async function Home({params}: {params: Promise<{locale: "en" | "ru"}>}) {
+  const {locale} = await params;
+  setRequestLocale(locale);
+  const isEn = locale === "en";
+  const posts = getPosts(locale);
 
   const skills = [
     "Flutter",
@@ -92,7 +93,7 @@ export default function Home({params}: {params: {locale: "en" | "ru"}}) {
         <h2 className="section-title">{isEn ? "Blog" : "Блог"}</h2>
         <div className="space-y-3">
           {posts.map((post) => (
-            <Link key={post.slug} href={`/${params.locale}/blog/${post.slug}`} className="block rounded-xl border border-slate-800 p-4 hover:border-brand-500">
+            <Link key={post.slug} href={`/${locale}/blog/${post.slug}`} className="block rounded-xl border border-slate-800 p-4 hover:border-brand-500">
               <h3 className="font-medium">{post.title}</h3>
               <p className="text-sm text-slate-400">{post.date}</p>
             </Link>
@@ -102,7 +103,7 @@ export default function Home({params}: {params: {locale: "en" | "ru"}}) {
 
       <section>
         <h2 className="section-title">{isEn ? "Contact" : "Контакты"}</h2>
-        <ContactForm locale={params.locale} />
+        <ContactForm locale={locale} />
       </section>
     </main>
   );

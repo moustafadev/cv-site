@@ -1,0 +1,13 @@
+---
+title: "BLE in Flutter: Lessons from Production"
+date: "2026-04-20"
+locale: "en"
+---
+
+Integrating BLE into Flutter apps works well when you keep your plugin boundary clean and isolate platform-specific logic.
+
+## What helps most
+
+- Keep scanning and connection logic in dedicated services.
+- Use state management to avoid race conditions.
+- Add retry strategies for unstable hardware.

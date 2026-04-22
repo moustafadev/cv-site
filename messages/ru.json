@@ -1,0 +1,18 @@
+{
+  "nav": {
+    "about": "Обо мне",
+    "skills": "Навыки",
+    "experience": "Опыт",
+    "portfolio": "Портфолио",
+    "testimonials": "Отзывы",
+    "blog": "Блог",
+    "contact": "Контакты"
+  },
+  "hero": {
+    "name": "Мустафа Омар",
+    "title": "Flutter-разработчик",
+    "tagline": "Создаю масштабируемые мобильные приложения на Flutter, BLE и WebRTC.",
+    "downloadCv": "Скачать CV",
+    "contactMe": "Связаться"
+  }
+}

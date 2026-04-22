@@ -1,0 +1,18 @@
+{
+  "nav": {
+    "about": "About",
+    "skills": "Skills",
+    "experience": "Experience",
+    "portfolio": "Portfolio",
+    "testimonials": "Testimonials",
+    "blog": "Blog",
+    "contact": "Contact"
+  },
+  "hero": {
+    "name": "Mostafa Omar",
+    "title": "Flutter Developer",
+    "tagline": "Building scalable mobile apps with Flutter, BLE and WebRTC.",
+    "downloadCv": "Download CV",
+    "contactMe": "Contact me"
+  }
+}

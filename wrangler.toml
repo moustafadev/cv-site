@@ -9,8 +9,8 @@ keep_vars = true
 
 [[d1_databases]]
 binding = "DB"
-database_name = "REPLACE_WITH_YOUR_D1_NAME"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_UUID"
+database_name = "d1-template-database"
+database_id = "a1b79376-6b1a-436e-ac47-88eca47e565f"
 # Cloudflare Pages — keep local Wrangler in sync with the dashboard (D1, runtime flags).
 # Docs: https://developers.cloudflare.com/pages/functions/wrangler-configuration/
 #

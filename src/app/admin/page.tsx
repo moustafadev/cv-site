@@ -2,8 +2,18 @@
 
 import {useCallback, useEffect, useState} from "react";
 
-type RefRow = {host: string; count: number};
-type RecentRow = {t: number; path: string; locale: string; referrer: string; refHost: string; ua: string};
+type SourceRow = {source: string; count: number};
+type RecentRow = {
+  t: number;
+  path: string;
+  locale: string;
+  referrer: string;
+  refHost: string;
+  source: string;
+  platform: string;
+  country: string;
+  ua: string;
+};
 
 type AnalyticsDiagnostics = {
   nodeEnv: string;
@@ -22,7 +32,7 @@ type StatsPayload = {
   configured?: boolean;
   stats: null | {
     totalViews: number;
-    byRefHost: RefRow[];
+    bySource: SourceRow[];
     recent: RecentRow[];
   };
   diagnostics?: AnalyticsDiagnostics;
@@ -106,8 +116,7 @@ export default function AdminPage() {
       <div className="container-page max-w-4xl">
         <h1 className="text-2xl font-semibold text-brand-100">CV analytics</h1>
         <p className="mt-2 text-sm text-slate-400">
-          Total visits and approximate source (referrer when the browser sends it). One counted visit per browser tab
-          session.
+          Total visits, source app/site, country and platform. One counted visit per browser tab session.
         </p>
 
         {!authed ? (
@@ -225,7 +234,7 @@ export default function AdminPage() {
             </section>
 
             <section className="glass-card p-5">
-              <h2 className="mb-4 text-lg font-semibold text-sky-200">By source (hostname)</h2>
+              <h2 className="mb-4 text-lg font-semibold text-sky-200">By source</h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
@@ -235,16 +244,16 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.stats.byRefHost.length === 0 ? (
+                    {data.stats.bySource.length === 0 ? (
                       <tr>
                         <td colSpan={2} className="py-4 text-slate-500">
                           No data yet.
                         </td>
                       </tr>
                     ) : (
-                      data.stats.byRefHost.map((row) => (
-                        <tr key={row.host} className="border-b border-slate-800/80">
-                          <td className="py-2 pr-4 font-mono text-slate-200">{row.host}</td>
+                      data.stats.bySource.map((row) => (
+                        <tr key={row.source} className="border-b border-slate-800/80">
+                          <td className="py-2 pr-4 font-mono text-slate-200">{row.source}</td>
                           <td className="py-2">{row.count}</td>
                         </tr>
                       ))
@@ -263,13 +272,15 @@ export default function AdminPage() {
                       <th className="py-2 pr-3">Time</th>
                       <th className="py-2 pr-3">Path</th>
                       <th className="py-2 pr-3">Source</th>
+                      <th className="py-2 pr-3">Country</th>
+                      <th className="py-2 pr-3">Platform</th>
                       <th className="py-2">Referrer</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.stats.recent.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="py-4 text-slate-500">
+                        <td colSpan={6} className="py-4 text-slate-500">
                           No rows yet.
                         </td>
                       </tr>
@@ -280,7 +291,9 @@ export default function AdminPage() {
                             {row.t ? new Date(row.t).toLocaleString() : "—"}
                           </td>
                           <td className="py-2 pr-3 font-mono text-slate-200">{row.path}</td>
-                          <td className="py-2 pr-3 font-mono text-slate-300">{row.refHost}</td>
+                          <td className="py-2 pr-3 font-mono text-slate-300">{row.source || row.refHost}</td>
+                          <td className="py-2 pr-3 font-mono text-slate-300">{row.country || "ZZ"}</td>
+                          <td className="py-2 pr-3 font-mono text-slate-300">{row.platform || "unknown"}</td>
                           <td className="max-w-xs truncate py-2 text-slate-500" title={row.referrer}>
                             {row.referrer || "—"}
                           </td>

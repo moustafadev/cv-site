@@ -24,6 +24,27 @@ function safeRefHostField(host: string): string {
   return trimmed || "(unknown)";
 }
 
+function detectSourceFromUserAgent(ua: string): string | null {
+  const s = ua.toLowerCase();
+  if (s.includes("telegram")) return "telegram";
+  if (s.includes("whatsapp")) return "whatsapp";
+  if (s.includes("instagram")) return "instagram";
+  if (s.includes("fbav") || s.includes("fban") || s.includes("facebook")) return "facebook";
+  if (s.includes("tiktok")) return "tiktok";
+  if (s.includes("linkedin")) return "linkedin";
+  return null;
+}
+
+function detectPlatformFromUserAgent(ua: string): string {
+  const s = ua.toLowerCase();
+  if (s.includes("android")) return "android";
+  if (s.includes("iphone") || s.includes("ipad") || s.includes("ios")) return "ios";
+  if (s.includes("windows")) return "windows";
+  if (s.includes("macintosh") || s.includes("mac os")) return "macos";
+  if (s.includes("linux")) return "linux";
+  return "unknown";
+}
+
 export function isCvAnalyticsConfigured(): boolean {
   return useMemoryStore() || getCfD1Config() !== null;
 }
@@ -48,15 +69,24 @@ export async function recordCvView(input: {
   locale?: string;
   landingReferrer: string | null;
   userAgent?: string | null;
+  country?: string | null;
 }): Promise<{ok: boolean; reason?: string}> {
   const refHost = safeRefHostField(parseRefHost(input.landingReferrer));
+  const ua = (input.userAgent ?? "").slice(0, 400);
+  const appSource = detectSourceFromUserAgent(ua);
+  const source = appSource ?? refHost;
+  const platform = detectPlatformFromUserAgent(ua);
+  const country = (input.country ?? "").trim().slice(0, 3).toUpperCase() || "ZZ";
   const row = {
     t: Date.now(),
     path: input.path,
     locale: input.locale ?? "",
     referrer: input.landingReferrer ?? "",
     refHost,
-    ua: (input.userAgent ?? "").slice(0, 400)
+    source,
+    platform,
+    country,
+    ua
   };
 
   if (useMemoryStore()) {
@@ -79,6 +109,9 @@ export async function recordCvView(input: {
       locale: row.locale,
       referrer: row.referrer,
       refHost: row.refHost,
+        source: row.source,
+        platform: row.platform,
+        country: row.country,
       ua: row.ua
     });
     lastD1Error = null;
@@ -91,29 +124,34 @@ export async function recordCvView(input: {
 
 export type CvStats = {
   totalViews: number;
-  byRefHost: {host: string; count: number}[];
+  bySource: {source: string; count: number}[];
   recent: {
     t: number;
     path: string;
     locale: string;
     referrer: string;
     refHost: string;
+    source: string;
+    platform: string;
+    country: string;
     ua: string;
   }[];
 };
 
 function buildMemoryStats(): CvStats {
-  const byRefHost = [...memRefHost.entries()]
-    .map(([host, count]) => ({host, count}))
+  const bySourceMap = new Map<string, number>();
+  for (const [host, count] of memRefHost.entries()) bySourceMap.set(host, count);
+  const bySource = [...bySourceMap.entries()]
+    .map(([source, count]) => ({source, count}))
     .sort((a, b) => b.count - a.count);
   const recent = memRecent.slice(0, 100).map((line) => {
     try {
       return JSON.parse(line) as CvStats["recent"][number];
     } catch {
-      return {t: 0, path: "", locale: "", referrer: "", refHost: "", ua: ""};
+      return {t: 0, path: "", locale: "", referrer: "", refHost: "", source: "", platform: "", country: "", ua: ""};
     }
   });
-  return {totalViews: memTotal, byRefHost, recent};
+  return {totalViews: memTotal, bySource, recent};
 }
 
 export async function getCvStats(): Promise<CvStats | null> {
@@ -128,6 +166,6 @@ export async function getCvStats(): Promise<CvStats | null> {
     return stats;
   } catch (error) {
     lastD1Error = error instanceof Error ? error.message.slice(0, 300) : "Unknown D1 error";
-    return {totalViews: 0, byRefHost: [], recent: []};
+    return {totalViews: 0, bySource: [], recent: []};
   }
 }

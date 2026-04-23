@@ -48,6 +48,11 @@ async function d1Post(cfg: CfD1Config, body: {sql: string; params?: string[]} | 
 
 let d1SchemaReady = false;
 
+function isMissingColumnError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message.toLowerCase() : "";
+  return msg.includes("no such column");
+}
+
 const SCHEMA_BATCH = [
   {
     sql: `CREATE TABLE IF NOT EXISTS cv_views (
@@ -56,6 +61,9 @@ const SCHEMA_BATCH = [
       path TEXT NOT NULL,
       locale TEXT,
       ref_host TEXT NOT NULL,
+      source TEXT,
+      platform TEXT,
+      country TEXT,
       referrer TEXT,
       user_agent TEXT
     )`
@@ -65,71 +73,144 @@ const SCHEMA_BATCH = [
   },
   {
     sql: `CREATE INDEX IF NOT EXISTS idx_cv_views_ref_host ON cv_views(ref_host)`
+  },
+  {
+    sql: `CREATE INDEX IF NOT EXISTS idx_cv_views_source ON cv_views(source)`
   }
 ];
 
 export async function d1EnsureSchema(cfg: CfD1Config): Promise<void> {
   if (d1SchemaReady) return;
   await d1Post(cfg, {batch: SCHEMA_BATCH});
+  // Lightweight migrations for existing databases created before extra columns were added.
+  const migrations = [
+    `ALTER TABLE cv_views ADD COLUMN source TEXT`,
+    `ALTER TABLE cv_views ADD COLUMN platform TEXT`,
+    `ALTER TABLE cv_views ADD COLUMN country TEXT`
+  ];
+  for (const sql of migrations) {
+    try {
+      await d1Post(cfg, {sql});
+    } catch (error) {
+      const msg = error instanceof Error ? error.message.toLowerCase() : "";
+      if (!msg.includes("duplicate column")) throw error;
+    }
+  }
   d1SchemaReady = true;
 }
 
 export async function d1RecordView(
   cfg: CfD1Config,
-  row: {id: string; t: number; path: string; locale: string; referrer: string; refHost: string; ua: string}
+  row: {
+    id: string;
+    t: number;
+    path: string;
+    locale: string;
+    referrer: string;
+    refHost: string;
+    source: string;
+    platform: string;
+    country: string;
+    ua: string;
+  }
 ): Promise<void> {
   await d1EnsureSchema(cfg);
-  await d1Post(cfg, {
-    sql: `INSERT INTO cv_views (id, created_at, path, locale, ref_host, referrer, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    params: [
-      row.id,
-      String(row.t),
-      row.path,
-      row.locale,
-      row.refHost,
-      row.referrer,
-      row.ua
-    ]
-  });
+  try {
+    await d1Post(cfg, {
+      sql: `INSERT INTO cv_views (id, created_at, path, locale, ref_host, source, platform, country, referrer, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      params: [
+        row.id,
+        String(row.t),
+        row.path,
+        row.locale,
+        row.refHost,
+        row.source,
+        row.platform,
+        row.country,
+        row.referrer,
+        row.ua
+      ]
+    });
+  } catch (error) {
+    if (!isMissingColumnError(error)) throw error;
+    d1SchemaReady = false;
+    await d1EnsureSchema(cfg);
+    await d1Post(cfg, {
+      sql: `INSERT INTO cv_views (id, created_at, path, locale, ref_host, source, platform, country, referrer, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      params: [
+        row.id,
+        String(row.t),
+        row.path,
+        row.locale,
+        row.refHost,
+        row.source,
+        row.platform,
+        row.country,
+        row.referrer,
+        row.ua
+      ]
+    });
+  }
 }
 
 export async function d1GetStats(cfg: CfD1Config): Promise<{
   totalViews: number;
-  byRefHost: {host: string; count: number}[];
+  bySource: {source: string; count: number}[];
   recent: {
     t: number;
     path: string;
     locale: string;
     referrer: string;
     refHost: string;
+    source: string;
+    platform: string;
+    country: string;
     ua: string;
   }[];
 }> {
   await d1EnsureSchema(cfg);
-  const batch = await d1Post(cfg, {
-    batch: [
-      {sql: "SELECT COUNT(*) AS c FROM cv_views"},
-      {
-        sql: `SELECT ref_host AS host, COUNT(*) AS cnt FROM cv_views GROUP BY ref_host ORDER BY cnt DESC LIMIT 100`
-      },
-      {
-        sql: `SELECT created_at AS t, path, locale, ref_host AS refHost, referrer, user_agent AS ua FROM cv_views ORDER BY created_at DESC LIMIT 100`
-      }
-    ]
-  });
+  let batch: D1QueryResponse;
+  try {
+    batch = await d1Post(cfg, {
+      batch: [
+        {sql: "SELECT COUNT(*) AS c FROM cv_views"},
+        {
+          sql: `SELECT COALESCE(NULLIF(source, ''), ref_host, '(direct / no referrer)') AS source, COUNT(*) AS cnt FROM cv_views GROUP BY source ORDER BY cnt DESC LIMIT 100`
+        },
+        {
+          sql: `SELECT created_at AS t, path, locale, ref_host AS refHost, source, platform, country, referrer, user_agent AS ua FROM cv_views ORDER BY created_at DESC LIMIT 100`
+        }
+      ]
+    });
+  } catch (error) {
+    if (!isMissingColumnError(error)) throw error;
+    d1SchemaReady = false;
+    await d1EnsureSchema(cfg);
+    batch = await d1Post(cfg, {
+      batch: [
+        {sql: "SELECT COUNT(*) AS c FROM cv_views"},
+        {
+          sql: `SELECT COALESCE(NULLIF(source, ''), ref_host, '(direct / no referrer)') AS source, COUNT(*) AS cnt FROM cv_views GROUP BY source ORDER BY cnt DESC LIMIT 100`
+        },
+        {
+          sql: `SELECT created_at AS t, path, locale, ref_host AS refHost, source, platform, country, referrer, user_agent AS ua FROM cv_views ORDER BY created_at DESC LIMIT 100`
+        }
+      ]
+    });
+  }
 
   const parts = batch.result ?? [];
   const totalRow = parts[0]?.results?.[0] ?? {};
   const cVal = totalRow.c ?? totalRow.COUNT;
   const totalViews = typeof cVal === "number" ? cVal : Number(cVal ?? 0);
 
-  const refRows = parts[1]?.results ?? [];
-  const byRefHost = refRows
+  const sourceRows = parts[1]?.results ?? [];
+  const bySource = sourceRows
     .map((r) => ({
-      host: String(r.host ?? ""),
+      source: String(r.source ?? ""),
       count: Number(r.cnt ?? r.count ?? 0) || 0
     }))
-    .filter((x) => x.host);
+    .filter((x) => x.source);
 
   const recentRows = parts[2]?.results ?? [];
   const recent = recentRows.map((r) => ({
@@ -137,9 +218,12 @@ export async function d1GetStats(cfg: CfD1Config): Promise<{
     path: String(r.path ?? ""),
     locale: String(r.locale ?? ""),
     refHost: String(r.refHost ?? r.ref_host ?? ""),
+    source: String(r.source ?? r.refHost ?? r.ref_host ?? ""),
+    platform: String(r.platform ?? ""),
+    country: String(r.country ?? ""),
     referrer: String(r.referrer ?? ""),
     ua: String(r.ua ?? r.user_agent ?? "")
   }));
 
-  return {totalViews, byRefHost, recent};
+  return {totalViews, bySource, recent};
 }

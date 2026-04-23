@@ -16,6 +16,7 @@ export async function POST(request: Request) {
   const landingReferrer =
     typeof body.landingReferrer === "string" ? body.landingReferrer.slice(0, 2000) : body.landingReferrer ?? null;
   const userAgent = request.headers.get("user-agent");
-  const result = await recordCvView({path, locale, landingReferrer, userAgent});
+  const country = request.headers.get("cf-ipcountry") ?? request.headers.get("x-vercel-ip-country");
+  const result = await recordCvView({path, locale, landingReferrer, userAgent, country});
   return NextResponse.json(result, {status: result.ok ? 200 : 503});
 }

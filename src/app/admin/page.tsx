@@ -13,6 +13,7 @@ type AnalyticsDiagnostics = {
     CLOUDFLARE_D1_DATABASE_ID: boolean;
     CLOUDFLARE_API_TOKEN: boolean;
     ready: boolean;
+    lastError?: string | null;
   };
 };
 
@@ -152,6 +153,13 @@ export default function AdminPage() {
 
         {error ? <p className="mt-4 text-sm text-rose-300">{error}</p> : null}
 
+        {authed && data?.diagnostics?.d1.lastError ? (
+          <div className="mt-4 rounded-lg border border-rose-800/80 bg-rose-950/40 p-3 text-sm text-rose-200">
+            <p className="font-medium">D1 error</p>
+            <p className="mt-1 font-mono text-xs break-all">{data.diagnostics.d1.lastError}</p>
+          </div>
+        ) : null}
+
         {authed && data?.configured === false ? (
           <div className="mt-8 space-y-6 rounded-xl border border-amber-800/80 bg-amber-950/40 p-4 text-sm text-amber-100">
             <p className="font-medium">Analytics storage not configured (D1)</p>
@@ -172,6 +180,7 @@ export default function AdminPage() {
                   <li>CLOUDFLARE_D1_DATABASE_ID: {data.diagnostics.d1.CLOUDFLARE_D1_DATABASE_ID ? "✓" : "✗"}</li>
                   <li>CLOUDFLARE_API_TOKEN: {data.diagnostics.d1.CLOUDFLARE_API_TOKEN ? "✓" : "✗"}</li>
                   <li className="text-slate-400">D1 ready: {data.diagnostics.d1.ready ? "yes" : "no"}</li>
+                  <li className="text-slate-400">D1 last error: {data.diagnostics.d1.lastError || "none"}</li>
                 </ul>
                 <p className="mt-2 text-xs text-slate-500">
                   Dev RAM mode: {data.diagnostics.memoryDev ? "on" : "off"} (<code className="text-slate-400">CV_ANALYTICS_MEMORY=1</code> + dev only)

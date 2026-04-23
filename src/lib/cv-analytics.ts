@@ -7,6 +7,7 @@ function useMemoryStore(): boolean {
 let memTotal = 0;
 const memRefHost = new Map<string, number>();
 const memRecent: string[] = [];
+let lastD1Error: string | null = null;
 
 function parseRefHost(landingReferrer: string | null | undefined): string {
   if (!landingReferrer) return "(direct / no referrer)";
@@ -36,7 +37,8 @@ export function getAnalyticsDiagnostics() {
       CLOUDFLARE_ACCOUNT_ID: Boolean(process.env.CLOUDFLARE_ACCOUNT_ID?.trim()),
       CLOUDFLARE_D1_DATABASE_ID: Boolean(process.env.CLOUDFLARE_D1_DATABASE_ID?.trim()),
       CLOUDFLARE_API_TOKEN: Boolean(process.env.CLOUDFLARE_API_TOKEN?.trim()),
-      ready: getCfD1Config() !== null
+      ready: getCfD1Config() !== null,
+      lastError: lastD1Error
     }
   };
 }
@@ -79,8 +81,10 @@ export async function recordCvView(input: {
       refHost: row.refHost,
       ua: row.ua
     });
+    lastD1Error = null;
     return {ok: true};
-  } catch {
+  } catch (error) {
+    lastD1Error = error instanceof Error ? error.message.slice(0, 300) : "Unknown D1 error";
     return {ok: false, reason: "cloudflare_d1_failed"};
   }
 }
@@ -119,8 +123,11 @@ export async function getCvStats(): Promise<CvStats | null> {
   const d1 = getCfD1Config();
   if (!d1) return null;
   try {
-    return await d1GetStats(d1);
-  } catch {
+    const stats = await d1GetStats(d1);
+    lastD1Error = null;
+    return stats;
+  } catch (error) {
+    lastD1Error = error instanceof Error ? error.message.slice(0, 300) : "Unknown D1 error";
     return {totalViews: 0, byRefHost: [], recent: []};
   }
 }

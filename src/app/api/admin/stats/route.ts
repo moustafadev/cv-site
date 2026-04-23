@@ -19,5 +19,5 @@ export async function GET() {
     });
   }
   const stats = await getCvStats();
-  return NextResponse.json({ok: true, configured: true, stats});
+  return NextResponse.json({ok: true, configured: true, stats, diagnostics: getAnalyticsDiagnostics()});
 }

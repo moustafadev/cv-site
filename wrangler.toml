@@ -23,24 +23,3 @@ database_id = "a1b79376-6b1a-436e-ac47-88eca47e565f"
 #    (overwrites this file — back it up first if you customized it.)
 # 4) Local secrets for Wrangler: use `.dev.vars` (gitignored), same keys as `.env.local`.
 # 5) After changing bindings/vars here: `npm run cf:types` (generates gitignored `worker-configuration.d.ts`).
-
-"$schema" = "./node_modules/wrangler/config-schema.json"
-
-name = "cv-site"
-
-compatibility_date = "2026-04-23"
-
-compatibility_flags = [ "nodejs_compat" ]
-
-# When you deploy with Wrangler, do not wipe Variables & Secrets set in the dashboard.
-# https://developers.cloudflare.com/workers/wrangler/configuration/#keep-vars
-keep_vars = true
-
-[[d1_databases]]
-binding = "DB"
-database_name = "d1-template-database"
-database_id = "a1b79376-6b1a-436e-ac47-88eca47e565f"
-
-# Omit until you deploy with Wrangler using your real build output (Next adapter / downloaded config).
-# Git-based Pages builds can keep using Cloudflare’s UI build settings until this is set.
-# pages_build_output_dir = "./dist"

@@ -1,0 +1,46 @@
+"$schema" = "./node_modules/wrangler/config-schema.json"
+
+name = "cv-site"
+compatibility_date = "2026-04-23"
+compatibility_flags = [ "nodejs_compat" ]
+
+# Preserve dashboard Variables/Secrets on Wrangler deploys.
+keep_vars = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "REPLACE_WITH_YOUR_D1_NAME"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_UUID"
+# Cloudflare Pages — keep local Wrangler in sync with the dashboard (D1, runtime flags).
+# Docs: https://developers.cloudflare.com/pages/functions/wrangler-configuration/
+#
+# 1) Set `name` to your Pages project slug (Workers & Pages → project name).
+# 2) Set D1 `database_name` + `database_id` from Workers & Pages → D1 (UUID = database_id).
+#    This repo uses the D1 HTTP API (`CLOUDFLARE_*` in .env / dashboard). The binding below
+#    matches what the dashboard adds for Pages Functions / `wrangler pages dev` (context.env.DB).
+# 3) Optional: merge the rest of your live settings without guessing:
+#    npx wrangler pages download config <PROJECT_NAME>
+#    (overwrites this file — back it up first if you customized it.)
+# 4) Local secrets for Wrangler: use `.dev.vars` (gitignored), same keys as `.env.local`.
+# 5) After changing bindings/vars here: `npm run cf:types` (generates gitignored `worker-configuration.d.ts`).
+
+"$schema" = "./node_modules/wrangler/config-schema.json"
+
+name = "cv-site"
+
+compatibility_date = "2026-04-23"
+
+compatibility_flags = [ "nodejs_compat" ]
+
+# When you deploy with Wrangler, do not wipe Variables & Secrets set in the dashboard.
+# https://developers.cloudflare.com/workers/wrangler/configuration/#keep-vars
+keep_vars = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "REPLACE_WITH_YOUR_D1_NAME"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_UUID"
+
+# Omit until you deploy with Wrangler using your real build output (Next adapter / downloaded config).
+# Git-based Pages builds can keep using Cloudflare’s UI build settings until this is set.
+# pages_build_output_dir = "./dist"

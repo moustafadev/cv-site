@@ -35,6 +35,14 @@ type StatsPayload = {
     bySource: SourceRow[];
     recent: RecentRow[];
   };
+  messages?: {
+    id: string;
+    t: number;
+    locale: string;
+    name: string;
+    email: string;
+    message: string;
+  }[];
   diagnostics?: AnalyticsDiagnostics;
 };
 
@@ -228,6 +236,42 @@ export default function AdminPage() {
 
         {authed && data?.configured && data.stats ? (
           <div className="mt-10 space-y-10">
+            <section className="glass-card p-5">
+              <h2 className="mb-4 text-lg font-semibold text-sky-200">Contact messages</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-700 text-slate-400">
+                      <th className="py-2 pr-3">Time</th>
+                      <th className="py-2 pr-3">Name</th>
+                      <th className="py-2 pr-3">Email</th>
+                      <th className="py-2 pr-3">Locale</th>
+                      <th className="py-2">Message</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {!data.messages || data.messages.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-4 text-slate-500">
+                          No messages yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      data.messages.map((row) => (
+                        <tr key={row.id} className="border-b border-slate-800/80 align-top">
+                          <td className="py-2 pr-3 whitespace-nowrap text-slate-400">{row.t ? new Date(row.t).toLocaleString() : "—"}</td>
+                          <td className="py-2 pr-3 font-medium text-slate-200">{row.name}</td>
+                          <td className="py-2 pr-3 text-sky-300">{row.email}</td>
+                          <td className="py-2 pr-3 font-mono text-slate-300">{row.locale || "—"}</td>
+                          <td className="max-w-xl py-2 text-slate-200 whitespace-pre-wrap">{row.message}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
             <section className="glass-card p-5">
               <h2 className="text-lg font-semibold text-sky-200">Total views (sessions)</h2>
               <p className="mt-2 text-4xl font-bold text-slate-50">{data.stats.totalViews}</p>

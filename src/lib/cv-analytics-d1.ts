@@ -76,6 +76,19 @@ const SCHEMA_BATCH = [
   },
   {
     sql: `CREATE INDEX IF NOT EXISTS idx_cv_views_source ON cv_views(source)`
+  },
+  {
+    sql: `CREATE TABLE IF NOT EXISTS contact_messages (
+      id TEXT PRIMARY KEY NOT NULL,
+      created_at INTEGER NOT NULL,
+      locale TEXT,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      message TEXT NOT NULL
+    )`
+  },
+  {
+    sql: `CREATE INDEX IF NOT EXISTS idx_contact_messages_created_at ON contact_messages(created_at)`
   }
 ];
 
@@ -226,4 +239,47 @@ export async function d1GetStats(cfg: CfD1Config): Promise<{
   }));
 
   return {totalViews, bySource, recent};
+}
+
+export async function d1RecordContactMessage(
+  cfg: CfD1Config,
+  row: {
+    id: string;
+    t: number;
+    locale: string;
+    name: string;
+    email: string;
+    message: string;
+  }
+): Promise<void> {
+  await d1EnsureSchema(cfg);
+  await d1Post(cfg, {
+    sql: `INSERT INTO contact_messages (id, created_at, locale, name, email, message) VALUES (?, ?, ?, ?, ?, ?)`,
+    params: [row.id, String(row.t), row.locale, row.name, row.email, row.message]
+  });
+}
+
+export async function d1GetContactMessages(cfg: CfD1Config): Promise<
+  {
+    id: string;
+    t: number;
+    locale: string;
+    name: string;
+    email: string;
+    message: string;
+  }[]
+> {
+  await d1EnsureSchema(cfg);
+  const result = await d1Post(cfg, {
+    sql: `SELECT id, created_at AS t, locale, name, email, message FROM contact_messages ORDER BY created_at DESC LIMIT 100`
+  });
+  const rows = result.result?.[0]?.results ?? [];
+  return rows.map((row) => ({
+    id: String(row.id ?? ""),
+    t: Number(row.t ?? 0) || 0,
+    locale: String(row.locale ?? ""),
+    name: String(row.name ?? ""),
+    email: String(row.email ?? ""),
+    message: String(row.message ?? "")
+  }));
 }

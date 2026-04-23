@@ -3,11 +3,10 @@ type ContactFormProps = {
 };
 
 export function ContactForm({locale}: ContactFormProps) {
-  const action = process.env.NEXT_PUBLIC_FORMSPREE_URL || "";
-
   return (
-    <form action={action} method="POST" className="grid gap-3 rounded-xl border border-slate-800 p-4">
+    <form action="/api/contact" method="POST" className="grid gap-3 rounded-xl border border-slate-800 p-4">
       <input type="hidden" name="_subject" value="New portfolio contact" />
+      <input type="hidden" name="locale" value={locale} />
       <label className="grid gap-1 text-sm">
         <span>{locale === "en" ? "Name" : "Имя"}</span>
         <input

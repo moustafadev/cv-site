@@ -1,7 +1,7 @@
 import {cookies} from "next/headers";
 import {NextResponse} from "next/server";
 import {ADMIN_COOKIE, verifyAdminToken} from "@/lib/admin-session";
-import {getAnalyticsDiagnostics, getCvStats, isCvAnalyticsConfigured} from "@/lib/cv-analytics";
+import {getAnalyticsDiagnostics, getContactMessages, getCvStats, isCvAnalyticsConfigured} from "@/lib/cv-analytics";
 
 export async function GET() {
   const secret = process.env.ADMIN_SESSION_SECRET?.trim();
@@ -19,5 +19,6 @@ export async function GET() {
     });
   }
   const stats = await getCvStats();
-  return NextResponse.json({ok: true, configured: true, stats, diagnostics: getAnalyticsDiagnostics()});
+  const messages = await getContactMessages();
+  return NextResponse.json({ok: true, configured: true, stats, messages, diagnostics: getAnalyticsDiagnostics()});
 }

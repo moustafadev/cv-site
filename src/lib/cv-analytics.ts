@@ -1,4 +1,4 @@
-import {d1GetStats, d1RecordView, getCfD1Config} from "@/lib/cv-analytics-d1";
+import {d1GetContactMessages, d1GetStats, d1RecordContactMessage, d1RecordView, getCfD1Config} from "@/lib/cv-analytics-d1";
 
 function useMemoryStore(): boolean {
   return process.env.NODE_ENV === "development" && process.env.CV_ANALYTICS_MEMORY === "1";
@@ -7,6 +7,7 @@ function useMemoryStore(): boolean {
 let memTotal = 0;
 const memRefHost = new Map<string, number>();
 const memRecent: string[] = [];
+const memMessages: string[] = [];
 let lastD1Error: string | null = null;
 
 function parseRefHost(landingReferrer: string | null | undefined): string {
@@ -167,5 +168,77 @@ export async function getCvStats(): Promise<CvStats | null> {
   } catch (error) {
     lastD1Error = error instanceof Error ? error.message.slice(0, 300) : "Unknown D1 error";
     return {totalViews: 0, bySource: [], recent: []};
+  }
+}
+
+export type ContactMessage = {
+  id: string;
+  t: number;
+  locale: string;
+  name: string;
+  email: string;
+  message: string;
+};
+
+export async function recordContactMessage(input: {
+  locale?: string;
+  name: string;
+  email: string;
+  message: string;
+}): Promise<{ok: boolean; reason?: string}> {
+  const row: ContactMessage = {
+    id: globalThis.crypto.randomUUID(),
+    t: Date.now(),
+    locale: (input.locale ?? "").trim().slice(0, 10),
+    name: input.name.trim().slice(0, 120),
+    email: input.email.trim().slice(0, 200),
+    message: input.message.trim().slice(0, 4000)
+  };
+
+  if (!row.name || !row.email || !row.message) {
+    return {ok: false, reason: "invalid_payload"};
+  }
+
+  if (useMemoryStore()) {
+    memMessages.unshift(JSON.stringify(row));
+    if (memMessages.length > 500) memMessages.length = 500;
+    return {ok: true};
+  }
+
+  const d1 = getCfD1Config();
+  if (!d1) return {ok: false, reason: "d1_not_configured"};
+  try {
+    await d1RecordContactMessage(d1, row);
+    lastD1Error = null;
+    return {ok: true};
+  } catch (error) {
+    lastD1Error = error instanceof Error ? error.message.slice(0, 300) : "Unknown D1 error";
+    return {ok: false, reason: "cloudflare_d1_failed"};
+  }
+}
+
+export async function getContactMessages(): Promise<ContactMessage[]> {
+  if (useMemoryStore()) {
+    return memMessages
+      .slice(0, 100)
+      .map((line) => {
+        try {
+          return JSON.parse(line) as ContactMessage;
+        } catch {
+          return null;
+        }
+      })
+      .filter((row): row is ContactMessage => row !== null);
+  }
+
+  const d1 = getCfD1Config();
+  if (!d1) return [];
+  try {
+    const rows = await d1GetContactMessages(d1);
+    lastD1Error = null;
+    return rows;
+  } catch (error) {
+    lastD1Error = error instanceof Error ? error.message.slice(0, 300) : "Unknown D1 error";
+    return [];
   }
 }

@@ -18,5 +18,6 @@ export async function POST(request: Request) {
   const userAgent = request.headers.get("user-agent");
   const country = request.headers.get("cf-ipcountry") ?? request.headers.get("x-vercel-ip-country");
   const result = await recordCvView({path, locale, landingReferrer, userAgent, country});
-  return NextResponse.json(result, {status: result.ok ? 200 : 503});
+  const isDev = process.env.NODE_ENV === "development";
+  return NextResponse.json(result, {status: result.ok || isDev ? 200 : 503});
 }

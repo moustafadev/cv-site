@@ -53,6 +53,13 @@ function isMissingColumnError(error: unknown): boolean {
   return msg.includes("no such column");
 }
 
+async function getCvViewsColumns(cfg: CfD1Config): Promise<Set<string>> {
+  const res = await d1Post(cfg, {sql: `PRAGMA table_info(cv_views)`});
+  const rows = res.result?.[0]?.results ?? [];
+  const names = rows.map((row) => String(row.name ?? "").trim()).filter(Boolean);
+  return new Set(names);
+}
+
 const SCHEMA_BATCH = [
   {
     sql: `CREATE TABLE IF NOT EXISTS cv_views (
@@ -128,7 +135,7 @@ export async function d1RecordView(
   }
 ): Promise<void> {
   await d1EnsureSchema(cfg);
-  try {
+  const insertWithAllColumns = async () => {
     await d1Post(cfg, {
       sql: `INSERT INTO cv_views (id, created_at, path, locale, ref_host, source, platform, country, referrer, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       params: [
@@ -144,25 +151,32 @@ export async function d1RecordView(
         row.ua
       ]
     });
+  };
+  try {
+    await insertWithAllColumns();
   } catch (error) {
-    if (!isMissingColumnError(error)) throw error;
+    if (!isMissingColumnError(error)) {
+      throw error;
+    }
     d1SchemaReady = false;
     await d1EnsureSchema(cfg);
-    await d1Post(cfg, {
-      sql: `INSERT INTO cv_views (id, created_at, path, locale, ref_host, source, platform, country, referrer, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      params: [
-        row.id,
-        String(row.t),
-        row.path,
-        row.locale,
-        row.refHost,
-        row.source,
-        row.platform,
-        row.country,
-        row.referrer,
-        row.ua
-      ]
-    });
+    try {
+      await insertWithAllColumns();
+    } catch (retryError) {
+      if (!isMissingColumnError(retryError)) throw retryError;
+      const cols = await getCvViewsColumns(cfg);
+      const hasSource = cols.has("source");
+      const hasPlatform = cols.has("platform");
+      const hasCountry = cols.has("country");
+      if (!hasSource && !hasPlatform && !hasCountry) {
+        await d1Post(cfg, {
+          sql: `INSERT INTO cv_views (id, created_at, path, locale, ref_host, referrer, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          params: [row.id, String(row.t), row.path, row.locale, row.refHost, row.referrer, row.ua]
+        });
+        return;
+      }
+      throw retryError;
+    }
   }
 }
 
@@ -182,16 +196,24 @@ export async function d1GetStats(cfg: CfD1Config): Promise<{
   }[];
 }> {
   await d1EnsureSchema(cfg);
+  const cols = await getCvViewsColumns(cfg);
+  const hasSource = cols.has("source");
+  const hasPlatform = cols.has("platform");
+  const hasCountry = cols.has("country");
+  const sourceExpr = hasSource ? "COALESCE(NULLIF(source, ''), ref_host, '(direct / no referrer)')" : "COALESCE(ref_host, '(direct / no referrer)')";
+  const recentSourceExpr = hasSource ? "source" : "ref_host AS source";
+  const recentPlatformExpr = hasPlatform ? "platform" : "'' AS platform";
+  const recentCountryExpr = hasCountry ? "country" : "'' AS country";
   let batch: D1QueryResponse;
   try {
     batch = await d1Post(cfg, {
       batch: [
         {sql: "SELECT COUNT(*) AS c FROM cv_views"},
         {
-          sql: `SELECT COALESCE(NULLIF(source, ''), ref_host, '(direct / no referrer)') AS source, COUNT(*) AS cnt FROM cv_views GROUP BY source ORDER BY cnt DESC LIMIT 100`
+          sql: `SELECT ${sourceExpr} AS source, COUNT(*) AS cnt FROM cv_views GROUP BY source ORDER BY cnt DESC LIMIT 100`
         },
         {
-          sql: `SELECT created_at AS t, path, locale, ref_host AS refHost, source, platform, country, referrer, user_agent AS ua FROM cv_views ORDER BY created_at DESC LIMIT 100`
+          sql: `SELECT created_at AS t, path, locale, ref_host AS refHost, ${recentSourceExpr}, ${recentPlatformExpr}, ${recentCountryExpr}, referrer, user_agent AS ua FROM cv_views ORDER BY created_at DESC LIMIT 100`
         }
       ]
     });
@@ -203,10 +225,10 @@ export async function d1GetStats(cfg: CfD1Config): Promise<{
       batch: [
         {sql: "SELECT COUNT(*) AS c FROM cv_views"},
         {
-          sql: `SELECT COALESCE(NULLIF(source, ''), ref_host, '(direct / no referrer)') AS source, COUNT(*) AS cnt FROM cv_views GROUP BY source ORDER BY cnt DESC LIMIT 100`
+          sql: `SELECT ${sourceExpr} AS source, COUNT(*) AS cnt FROM cv_views GROUP BY source ORDER BY cnt DESC LIMIT 100`
         },
         {
-          sql: `SELECT created_at AS t, path, locale, ref_host AS refHost, source, platform, country, referrer, user_agent AS ua FROM cv_views ORDER BY created_at DESC LIMIT 100`
+          sql: `SELECT created_at AS t, path, locale, ref_host AS refHost, ${recentSourceExpr}, ${recentPlatformExpr}, ${recentCountryExpr}, referrer, user_agent AS ua FROM cv_views ORDER BY created_at DESC LIMIT 100`
         }
       ]
     });

@@ -122,10 +122,20 @@ export default function AdminPage() {
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
       <div className="container-page max-w-4xl">
-        <h1 className="text-2xl font-semibold text-brand-100">CV analytics</h1>
-        <p className="mt-2 text-sm text-slate-400">
-          Total visits, source app/site, country and platform. One counted visit per browser tab session.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold text-brand-100">CV analytics</h1>
+            <p className="mt-2 text-sm text-slate-400">
+              Total visits, source app/site, country and platform. One counted visit per browser tab session.
+            </p>
+          </div>
+          <a
+            href="/admin/wedding"
+            className="rounded-md border border-slate-600 px-3 py-1.5 text-sm hover:border-sky-400"
+          >
+            Wedding admin
+          </a>
+        </div>
 
         {!authed ? (
           <form onSubmit={login} className="mt-8 max-w-sm space-y-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4">

@@ -41,14 +41,14 @@ export const defaultWeddingConfig: WeddingConfig = {
     en: "Wafaa",
     ar: "وفاء",
   },
-  datetime: "2026-08-16T17:00:00",
+  datetime: "2026-08-16T19:00:00",
   dateLabel: {
     en: "August 16, 2026",
     ar: "١٦ أغسطس ٢٠٢٦",
   },
   timeLabel: {
-    en: "From 5:00 PM",
-    ar: "من الساعة ٥ مساءً",
+    en: "From 7:00 PM",
+    ar: "من الساعة ٧ مساءً",
   },
   venue: {
     en: "Villa Laguna",

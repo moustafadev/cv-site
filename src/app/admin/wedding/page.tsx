@@ -37,9 +37,11 @@ export default function WeddingAdminPage() {
       const json = (await res.json()) as {
         ok?: boolean;
         error?: string;
+        hint?: string;
         config?: WeddingConfig;
         rsvps?: WeddingRsvp[];
         stats?: {total: number; yes: number; no: number};
+        storage?: "d1" | "file";
       };
       if (res.status === 401) {
         setAuthed(false);
@@ -53,6 +55,9 @@ export default function WeddingAdminPage() {
       setConfig(json.config);
       setRsvps(json.rsvps || []);
       setStats(json.stats || {total: 0, yes: 0, no: 0});
+      if (json.storage === "file") {
+        setOkMsg("Local file mode. On Cloudflare, D1 is required for invite updates to persist.");
+      }
     } catch {
       setError("Network error");
     } finally {
@@ -110,13 +115,13 @@ export default function WeddingAdminPage() {
         credentials: "include",
         body: JSON.stringify({config}),
       });
-      const json = (await res.json()) as {ok?: boolean; error?: string; config?: WeddingConfig};
+      const json = (await res.json()) as {ok?: boolean; error?: string; hint?: string; config?: WeddingConfig};
       if (!res.ok || !json.ok || !json.config) {
-        setError(json.error || "Save failed");
+        setError(json.hint || json.error || "Save failed");
         return;
       }
       setConfig(json.config);
-      setOkMsg("Saved. Open /wedding to preview.");
+      setOkMsg("Saved to D1. Open /wedding to preview.");
     } catch {
       setError("Network error");
     } finally {

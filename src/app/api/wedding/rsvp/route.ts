@@ -30,7 +30,22 @@ export async function POST(request: Request) {
     message: typeof body.message === "string" ? body.message : "",
     signature: typeof body.signature === "string" ? body.signature : null,
     lang: body.lang === "ar" ? "ar" : "en",
+  }).catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : "save_failed";
+    if (message === "d1_required") {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "d1_required",
+          hint: "RSVP storage needs Cloudflare D1. Set CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_D1_DATABASE_ID, CLOUDFLARE_API_TOKEN.",
+        },
+        {status: 503}
+      );
+    }
+    return NextResponse.json({ok: false, error: message}, {status: 500});
   });
+
+  if (row instanceof NextResponse) return row;
 
   return NextResponse.json({ok: true, rsvp: {id: row.id, createdAt: row.createdAt}});
 }

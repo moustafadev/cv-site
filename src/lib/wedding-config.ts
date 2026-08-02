@@ -70,3 +70,50 @@ export const defaultWeddingConfig: WeddingConfig = {
 
 /** @deprecated use defaultWeddingConfig — kept for older imports */
 export const weddingConfig = defaultWeddingConfig;
+
+function isLocalized(value: unknown): value is LocalizedText {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as {en?: unknown}).en === "string" &&
+    typeof (value as {ar?: unknown}).ar === "string"
+  );
+}
+
+export function normalizeWeddingConfig(input: unknown): WeddingConfig {
+  const raw = (typeof input === "object" && input !== null ? input : {}) as Partial<WeddingConfig>;
+  const pickLocalized = (value: unknown, fallback: LocalizedText): LocalizedText =>
+    isLocalized(value)
+      ? {en: value.en.trim() || fallback.en, ar: value.ar.trim() || fallback.ar}
+      : fallback;
+
+  return {
+    groom: pickLocalized(raw.groom, defaultWeddingConfig.groom),
+    bride: pickLocalized(raw.bride, defaultWeddingConfig.bride),
+    datetime:
+      typeof raw.datetime === "string" && raw.datetime.trim()
+        ? raw.datetime.trim()
+        : defaultWeddingConfig.datetime,
+    dateLabel: pickLocalized(raw.dateLabel, defaultWeddingConfig.dateLabel),
+    timeLabel: pickLocalized(raw.timeLabel, defaultWeddingConfig.timeLabel),
+    venue: pickLocalized(raw.venue, defaultWeddingConfig.venue),
+    city: pickLocalized(raw.city, defaultWeddingConfig.city),
+    mapsUrl:
+      typeof raw.mapsUrl === "string" && raw.mapsUrl.trim()
+        ? raw.mapsUrl.trim()
+        : defaultWeddingConfig.mapsUrl,
+    whatsapp:
+      typeof raw.whatsapp === "string"
+        ? raw.whatsapp.replace(/\D/g, "") || defaultWeddingConfig.whatsapp
+        : defaultWeddingConfig.whatsapp,
+    video:
+      typeof raw.video === "string" && raw.video.trim()
+        ? raw.video.trim()
+        : defaultWeddingConfig.video,
+    poster:
+      typeof raw.poster === "string" && raw.poster.trim()
+        ? raw.poster.trim()
+        : defaultWeddingConfig.poster,
+    occasion: pickLocalized(raw.occasion, defaultWeddingConfig.occasion),
+  };
+}

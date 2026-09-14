@@ -9,6 +9,8 @@ export function LanguageSwitcher() {
   const pathname = usePathname();
   const switchTo = locale === "en" ? "ru" : "en";
   const basePath = pathname.replace(/^\/(en|ru)/, "");
+  // The blog has no Russian version, so there's nothing to switch to there.
+  if (/^\/blog(\/|$)/.test(basePath)) return null;
 
   return (
     <Link

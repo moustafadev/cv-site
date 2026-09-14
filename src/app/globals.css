@@ -151,3 +151,97 @@ body {
     transform: translateY(0) scale(1);
   }
 }
+
+.like-pop {
+  animation: likePop 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes likePop {
+  0% {
+    transform: scale(0.7);
+  }
+  60% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Post code blocks: let the prose <pre> own the frame so highlight.js doesn't draw a second box. */
+.prose pre code.hljs {
+  padding: 0;
+  background: transparent;
+}
+
+/* Post images: every image (cover and body) gets the same moderate frame, shown whole (no cropping).
+   Several images in one paragraph sit side by side; clicking one opens it full size. */
+.post-img-button {
+  display: block;
+  width: min(100%, 22rem);
+  cursor: zoom-in;
+}
+
+.post-img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: contain;
+  margin: 0 !important;
+  border: 1px solid rgb(30 41 59);
+  border-radius: 0.75rem;
+  background: rgb(15 23 42);
+  transition: border-color 0.2s ease;
+}
+
+.post-img-button:hover .post-img {
+  border-color: rgb(56 189 248 / 0.7);
+}
+
+.post-img-row,
+.prose p:has(> .post-img-button) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+/* Blog tabs: the active pill glides between tabs; cards fade/slide in, staggered, when a tab is picked. */
+.blog-tab-pill {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.blog-card-in {
+  animation: blogCardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes blogCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* "Reduce motion": no sliding or movement, but keep a gentle fade so switching tabs still reads as a change. */
+@media (prefers-reduced-motion: reduce) {
+  .blog-tab-pill {
+    transition: none;
+  }
+
+  .blog-card-in {
+    animation-name: blogCardFade;
+  }
+}
+
+@keyframes blogCardFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

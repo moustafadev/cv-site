@@ -1,6 +1,5 @@
 import {notFound} from "next/navigation";
 import {setRequestLocale} from "next-intl/server";
-import {ContactForm} from "@/components/ContactForm";
 import {isLocale} from "@/i18n/routing";
 
 export default async function Home({params}: {params: Promise<{locale: string}>}) {
@@ -350,11 +349,6 @@ export default async function Home({params}: {params: Promise<{locale: string}>}
             </article>
           ))}
         </div>
-      </section>
-
-      <section className="fade-up-delay-2">
-        <h2 className="section-title">{isEn ? "Contact" : "Контакты"}</h2>
-        <ContactForm locale={locale} />
       </section>
     </main>
   );

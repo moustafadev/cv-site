@@ -1,5 +1,6 @@
 {
   "nav": {
+    "cv": "CV",
     "about": "About",
     "skills": "Skills",
     "experience": "Experience",
@@ -14,5 +15,51 @@
     "tagline": "Building scalable mobile apps with Flutter, BLE and WebRTC.",
     "downloadCv": "Download CV",
     "contactMe": "Contact me"
+  },
+  "blog": {
+    "title": "Blog",
+    "subtitle": "Notes on Flutter, mobile engineering and lessons from production.",
+    "empty": "No posts yet — check back soon.",
+    "emptyTag": "No posts with this tag.",
+    "allPosts": "All posts",
+    "filteredBy": "Tag: {tag}",
+    "minRead": "{minutes} min read",
+    "views": "{count, plural, one {# view} other {# views}}",
+    "draftNotice": "Draft — only you can see this page.",
+    "contents": "Contents",
+    "like": "Like",
+    "unlike": "Unlike",
+    "share": "Share",
+    "shareVia": "Share via",
+    "copyLink": "Copy link",
+    "copied": "Copied!",
+    "commentsTitle": "Comments ({count})",
+    "noComments": "No comments yet — start the conversation.",
+    "author": "Author",
+    "you": "You",
+    "reply": "Reply",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "confirmDelete": "Delete this comment?",
+    "namePlaceholder": "Your name",
+    "commentPlaceholder": "Write a comment…",
+    "replyPlaceholder": "Write a reply…",
+    "postingAsAuthor": "Posting as the author",
+    "submit": "Post comment",
+    "submitReply": "Post reply",
+    "sending": "Sending…",
+    "errors": {
+      "invalid_name": "Please enter a name (2–60 characters).",
+      "invalid_body": "Comment can't be empty (max 2000 characters).",
+      "too_many_links": "Too many links in one comment.",
+      "captcha_failed": "Please complete the verification and try again.",
+      "rate_limited": "You're commenting too fast. Try again in a few minutes.",
+      "post_not_found": "This post is no longer available.",
+      "parent_not_found": "The comment you replied to was deleted.",
+      "generic": "Something went wrong. Please try again."
+    },
+    "onLinkedIn": "View on LinkedIn",
+    "allCategories": "All",
+    "categories": "Categories"
   }
 }

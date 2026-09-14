@@ -5,6 +5,7 @@ import {LanguageSwitcher} from "@/components/LanguageSwitcher";
 import {Analytics} from "@/components/Analytics";
 import {CvViewTracker} from "@/components/CvViewTracker";
 import {ProfileAvatar} from "@/components/ProfileAvatar";
+import {SiteNav} from "@/components/SiteNav";
 import {isLocale, locales} from "@/i18n/routing";
 
 export default async function LocaleLayout({
@@ -30,7 +31,10 @@ export default async function LocaleLayout({
               Mostafa Omar
             </a>
           </div>
-          <LanguageSwitcher />
+          <nav className="flex items-center gap-3">
+            <SiteNav />
+            <LanguageSwitcher />
+          </nav>
         </div>
       </header>
       {children}

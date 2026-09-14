@@ -129,12 +129,6 @@ export default function AdminPage() {
               Total visits, source app/site, country and platform. One counted visit per browser tab session.
             </p>
           </div>
-          <a
-            href="/admin/wedding"
-            className="rounded-md border border-slate-600 px-3 py-1.5 text-sm hover:border-sky-400"
-          >
-            Wedding admin
-          </a>
         </div>
 
         {!authed ? (

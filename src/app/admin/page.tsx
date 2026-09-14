@@ -1,6 +1,7 @@
 "use client";
 
 import {useCallback, useEffect, useState} from "react";
+import {RecentVisits} from "./RecentVisits";
 
 type SourceRow = {source: string; count: number};
 type RecentRow = {
@@ -44,6 +45,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<StatsPayload | null>(null);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const loadStats = useCallback(async () => {
     setLoading(true);
@@ -62,6 +64,7 @@ export default function AdminPage() {
       }
       setAuthed(true);
       setData(json);
+      setRefreshTick((n) => n + 1);
     } catch {
       setError("Network error");
     } finally {
@@ -270,47 +273,7 @@ export default function AdminPage() {
               </div>
             </section>
 
-            <section className="glass-card p-5">
-              <h2 className="mb-4 text-lg font-semibold text-sky-200">Recent visits</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-700 text-slate-400">
-                      <th className="py-2 pr-3">Time</th>
-                      <th className="py-2 pr-3">Path</th>
-                      <th className="py-2 pr-3">Source</th>
-                      <th className="py-2 pr-3">Country</th>
-                      <th className="py-2 pr-3">Platform</th>
-                      <th className="py-2">Referrer</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.stats.recent.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="py-4 text-slate-500">
-                          No rows yet.
-                        </td>
-                      </tr>
-                    ) : (
-                      data.stats.recent.map((row, i) => (
-                        <tr key={`${row.t}-${i}`} className="border-b border-slate-800/80 align-top">
-                          <td className="py-2 pr-3 whitespace-nowrap text-slate-400">
-                            {row.t ? new Date(row.t).toLocaleString() : "—"}
-                          </td>
-                          <td className="py-2 pr-3 font-mono text-slate-200">{row.path}</td>
-                          <td className="py-2 pr-3 font-mono text-slate-300">{row.source || row.refHost}</td>
-                          <td className="py-2 pr-3 font-mono text-slate-300">{row.country || "ZZ"}</td>
-                          <td className="py-2 pr-3 font-mono text-slate-300">{row.platform || "unknown"}</td>
-                          <td className="max-w-xs truncate py-2 text-slate-500" title={row.referrer}>
-                            {row.referrer || "—"}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+            <RecentVisits refreshTick={refreshTick} />
           </div>
         ) : null}
       </div>

@@ -23,17 +23,23 @@ export default async function LocaleLayout({
   return (
     <NextIntlClientProvider messages={messages}>
       <CvViewTracker locale={locale} />
-      <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/85 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-black/70 backdrop-blur-xl">
         <div className="container-page flex items-center justify-between py-3">
           <div className="flex items-center gap-2">
             <ProfileAvatar locale={locale} />
-            <a href={`/${locale}`} className="font-semibold text-brand-100">
+            <a href={`/${locale}`} className="font-display text-lg font-semibold text-white">
               Mostafa Omar
             </a>
           </div>
           <nav className="flex items-center gap-3">
             <SiteNav />
             <LanguageSwitcher />
+            <a
+              href={`/${locale}#contact`}
+              className="hidden rounded-full bg-accent px-4 py-2 text-sm font-semibold text-black transition hover:brightness-110 md:inline-flex"
+            >
+              {locale === "ru" ? "Связаться" : "Let’s connect"}
+            </a>
           </nav>
         </div>
       </header>

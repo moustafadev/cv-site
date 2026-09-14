@@ -14,7 +14,7 @@ export function LanguageSwitcher() {
 
   return (
     <Link
-      className="rounded-full border border-slate-700 px-3 py-1 text-sm hover:border-brand-500"
+      className="rounded-full border border-white/15 px-3 py-1 text-sm text-white/80 transition hover:border-accent hover:text-accent"
       href={`/${switchTo}${basePath || ""}`}
     >
       {switchTo.toUpperCase()}

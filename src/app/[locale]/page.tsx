@@ -1,6 +1,42 @@
+import Image from "next/image";
 import {notFound} from "next/navigation";
 import {setRequestLocale} from "next-intl/server";
+import {ExperienceAccordion} from "@/components/cv/ExperienceAccordion";
+import {Reveal} from "@/components/cv/Reveal";
+import {
+  AppleIcon,
+  ArrowUpRightIcon,
+  DownloadIcon,
+  GitHubIcon,
+  GlobeIcon,
+  GraduationIcon,
+  LinkedInIcon,
+  MailIcon,
+  PhoneIcon,
+  PinIcon,
+  PlayStoreIcon,
+  SparkleIcon,
+  TargetIcon
+} from "@/components/cv/icons";
 import {isLocale} from "@/i18n/routing";
+
+const EMAIL = "mostafaomardev@gmail.com";
+const PHONE = "+20 109 493 0203";
+const GITHUB = "https://github.com/moustafadev";
+const LINKEDIN = "https://www.linkedin.com/in/mostafa-omar-418622170";
+
+function SectionHeading({eyebrow, title, sub}: {eyebrow: string; title: string; sub?: string}) {
+  return (
+    <div className="mb-10 max-w-2xl">
+      <p className="inline-flex items-center gap-2 text-sm font-medium uppercase tracking-[0.2em] text-accent">
+        <SparkleIcon className="h-3.5 w-3.5" />
+        {eyebrow}
+      </p>
+      <h2 className="mt-3 font-display text-4xl font-semibold leading-tight text-white md:text-5xl">{title}</h2>
+      {sub ? <p className="mt-3 text-lg text-white/60">{sub}</p> : null}
+    </div>
+  );
+}
 
 export default async function Home({params}: {params: Promise<{locale: string}>}) {
   const {locale} = await params;
@@ -15,10 +51,16 @@ export default async function Home({params}: {params: Promise<{locale: string}>}
   ];
 
   const contacts = [
-    isEn ? "+7 918 724 95 22" : "+7 918 724 95 22",
-    "mostafaomardev@gmail.com",
-    isEn ? "Egypt, Cairo" : "Египет, Каир"
+    {icon: <MailIcon />, label: EMAIL, href: `mailto:${EMAIL}`},
+    {icon: <PhoneIcon />, label: PHONE, href: `tel:${PHONE.replace(/\s+/g, "")}`},
+    {icon: <PinIcon />, label: isEn ? "Cairo, Egypt" : "Каир, Египет", href: null}
   ];
+
+  const ticker = isEn
+    ? ["30+ apps shipped", "BLE & IoT", "WebRTC video calls", "Clean Architecture", "Native Swift · Kotlin · Java", "Riverpod · Bloc", "iOS & Android"]
+    : ["30+ приложений", "BLE и IoT", "WebRTC видеозвонки", "Clean Architecture", "Нативный Swift · Kotlin · Java", "Riverpod · Bloc", "iOS и Android"];
+
+  const cvHref = isEn ? "/Mostafa_Omar_CV_EN.pdf" : "/Mostafa_Omar_CV_RU.pdf";
 
   const about = isEn
     ? "Passionate Flutter developer with 4+ years of experience building scalable and adaptive mobile apps. Strong track record in leading teams and delivering projects end-to-end. Skilled in BLE, WebRTC, clean architecture, state management, and native integrations with Java, Kotlin, and Swift."
@@ -183,173 +225,325 @@ export default async function Home({params}: {params: Promise<{locale: string}>}
   ];
 
   return (
-    <main className="container-page space-y-10 py-10">
-      <section className="glass-card fade-up overflow-hidden p-6 md:p-9">
-        <div>
-          <div className="mb-5 inline-flex rounded-full border border-sky-700/70 bg-sky-900/30 px-3 py-1 text-xs text-sky-200">
-            {isEn ? "Available for freelance" : "Открыт к фрилансу"}
+    <main className="overflow-x-clip">
+      {/* ---------- Hero ---------- */}
+      <section className="relative">
+        <div className="pointer-events-none absolute -right-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-accent/10 blur-[120px]" aria-hidden="true" />
+        <div className="container-page relative grid items-center gap-14 py-14 md:py-20 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="fade-up">
+            <div className="mb-8 inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5 text-sm text-white/80">
+              <span className="pulse-dot inline-block h-2 w-2 rounded-full bg-accent" />
+              {isEn ? "Available for freelance & new projects" : "Открыт к фрилансу и новым проектам"}
+            </div>
+            <p className="font-display text-2xl font-medium text-white/70 md:text-3xl">
+              {isEn ? "Hey," : "Привет,"} <span className="wave inline-block">👋</span> {isEn ? "I’m" : "я"}
+            </p>
+            <h1 className="mt-2 font-display text-[clamp(3.2rem,10vw,6.5rem)] font-semibold leading-[0.95] tracking-tight text-white">
+              {isEn ? "Mostafa Omar" : "Мустафа Омар"}
+            </h1>
+            <h2 className="mt-5 font-display text-2xl font-medium text-accent md:text-4xl">
+              {isEn ? "Flutter Developer" : "Flutter-разработчик"}
+              <span className="text-white/40"> · {isEn ? "iOS & Android" : "iOS и Android"}</span>
+            </h2>
+            <p className="mt-6 max-w-xl text-lg leading-8 text-white/60">
+              {isEn
+                ? "4+ years building production apps in fintech, fitness, healthcare and logistics with BLE, WebRTC and clean architecture."
+                : "4+ года создаю продакшн-приложения для fintech, fitness, healthcare и logistics с BLE, WebRTC и clean architecture."}
+            </p>
+
+            <ul className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-x-6">
+              {contacts.map((item) => {
+                const content = (
+                  <>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-accent">{item.icon}</span>
+                    {item.label}
+                  </>
+                );
+                return (
+                  <li key={item.label}>
+                    {item.href ? (
+                      <a href={item.href} className="inline-flex items-center gap-3 text-sm text-white/80 transition hover:text-accent">
+                        {content}
+                      </a>
+                    ) : (
+                      <span className="inline-flex items-center gap-3 text-sm text-white/80">{content}</span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+
+            <div className="mt-10 flex flex-wrap items-center gap-3">
+              <a
+                href={cvHref}
+                download
+                className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-black transition hover:brightness-110"
+              >
+                <DownloadIcon className="h-4 w-4" />
+                {isEn ? "Download CV" : "Скачать CV"}
+              </a>
+              <a
+                href="#projects"
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 px-6 py-3 text-sm font-medium text-white transition hover:border-accent hover:text-accent"
+              >
+                {isEn ? "View projects" : "Смотреть проекты"}
+                <ArrowUpRightIcon />
+              </a>
+              <a href={GITHUB} target="_blank" rel="noreferrer" aria-label="GitHub" className="cv-icon-btn">
+                <GitHubIcon />
+              </a>
+              <a href={LINKEDIN} target="_blank" rel="noreferrer" aria-label="LinkedIn" className="cv-icon-btn">
+                <LinkedInIcon />
+              </a>
+            </div>
           </div>
-          <h1 className="text-4xl font-bold leading-tight md:text-5xl">
-            {isEn ? "Flutter Developer" : "Flutter-разработчик"}
-            <span className="block text-sky-300">{isEn ? "iOS & Android" : "iOS и Android"}</span>
-          </h1>
-          <p className="mt-4 max-w-2xl text-slate-300">
-            {isEn
-              ? "4+ years building production apps in fintech, fitness, healthcare and logistics with BLE, WebRTC and clean architecture."
-              : "4+ года создаю продакшн-приложения для fintech, fitness, healthcare и logistics с BLE, WebRTC и clean architecture."}
-          </p>
-          <div className="mt-4 flex items-center gap-2 text-sm text-emerald-400">
-            <span className="pulse-dot inline-block h-2 w-2 rounded-full bg-emerald-400" />
-            {isEn ? "Open to new projects" : "Открыт для новых проектов"}
+
+          {/* Portrait framed by long hairlines, a lime glow and a spinning sparkle. */}
+          <div className="fade-up-delay-1 relative mx-auto w-full max-w-[22rem] lg:max-w-none">
+            <div className="pointer-events-none absolute -inset-x-16 top-0 h-px bg-white/15" aria-hidden="true" />
+            <div className="pointer-events-none absolute -inset-x-16 bottom-0 h-px bg-white/15" aria-hidden="true" />
+            <div className="pointer-events-none absolute -inset-y-16 left-0 w-px bg-white/15" aria-hidden="true" />
+            <div className="pointer-events-none absolute -inset-y-16 right-0 w-px bg-white/15" aria-hidden="true" />
+            <div className="pointer-events-none absolute inset-8 rounded-full bg-accent/30 blur-3xl" aria-hidden="true" />
+            <SparkleIcon className="spin-slow pointer-events-none absolute -right-5 -top-5 z-10 h-10 w-10 text-accent" />
+            <div className="relative overflow-hidden rounded-[20px] border border-white/10 bg-white/[0.03]">
+              <Image
+                src="/profile-mostafa.png"
+                alt={isEn ? "Mostafa Omar" : "Мустафа Омар"}
+                width={800}
+                height={800}
+                priority
+                className="aspect-[4/5] w-full object-cover"
+              />
+            </div>
+            <div className="absolute -bottom-6 -left-4 z-10 rounded-2xl border border-white/10 bg-black/80 px-5 py-3 backdrop-blur md:-left-8">
+              <div className="font-display text-3xl font-semibold text-accent">30+</div>
+              <div className="text-xs text-white/60">{isEn ? "apps shipped" : "приложений"}</div>
+            </div>
           </div>
-          <div className="mt-5 flex flex-wrap gap-2 text-sm text-slate-300">
-            {contacts.map((item) => (
-              <span key={item} className="rounded-full border border-slate-700 px-3 py-1">
-                {item}
-              </span>
+        </div>
+      </section>
+
+      {/* ---------- Ticker ---------- */}
+      <section className="relative py-10" aria-label={isEn ? "Highlights" : "Ключевое"}>
+        <div className="-mx-4 -rotate-[1.5deg] bg-accent py-4 text-black">
+          <div className="ticker flex w-max">
+            {[0, 1].map((copy) => (
+              <ul key={copy} className="flex shrink-0 items-center" aria-hidden={copy === 1}>
+                {ticker.map((item) => (
+                  <li key={item} className="flex items-center gap-6 whitespace-nowrap px-6 font-display text-xl font-semibold md:text-2xl">
+                    {item}
+                    <SparkleIcon className="h-5 w-5" />
+                  </li>
+                ))}
+              </ul>
             ))}
           </div>
-          <div className="mt-4 flex flex-wrap gap-4 text-sm">
-            <a
-              href="https://github.com/moustafadev"
-              target="_blank"
-              rel="noreferrer"
-              className="text-sky-300 transition hover:text-sky-200"
-            >
+        </div>
+      </section>
+
+      {/* ---------- About ---------- */}
+      <section id="about" className="container-page scroll-mt-24 py-16 md:py-24">
+        <Reveal>
+          <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.03] p-7 md:p-12">
+            <div className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-accent/15 blur-[90px]" aria-hidden="true" />
+            <div className="relative grid gap-8 md:grid-cols-[auto_1fr]">
+              <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent text-black">
+                <TargetIcon className="h-8 w-8" />
+              </span>
+              <div>
+                <p className="text-sm font-medium uppercase tracking-[0.2em] text-accent">{isEn ? "About me" : "О себе"}</p>
+                <h2 className="mt-3 font-display text-3xl font-semibold leading-tight text-white md:text-4xl">
+                  {isEn ? "Mobile apps that ship — and keep working." : "Мобильные приложения, которые выходят в релиз и работают."}
+                </h2>
+                <p className="mt-5 text-base leading-8 text-white/60 md:text-lg">{about}</p>
+                <div className="mt-10 grid grid-cols-3 gap-4 border-t border-white/10 pt-8">
+                  {stats.map((stat) => (
+                    <div key={stat.label}>
+                      <div className="font-display text-4xl font-semibold text-accent md:text-5xl">{stat.value}</div>
+                      <div className="mt-1 text-sm text-white/60">{stat.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Reveal>
+
+        <div className="mt-5 grid gap-5 md:grid-cols-2">
+          <Reveal delay={80}>
+            <div className="h-full rounded-[20px] border border-white/10 bg-white/[0.02] p-6">
+              <div className="flex items-center gap-3 text-accent">
+                <GraduationIcon />
+                <span className="text-sm font-medium uppercase tracking-[0.15em]">{isEn ? "Education" : "Образование"}</span>
+              </div>
+              <h3 className="mt-4 font-display text-xl font-semibold text-white">{education.degree}</h3>
+              <p className="mt-2 text-sm leading-6 text-white/60">{education.school}</p>
+              <p className="mt-3 text-sm text-white/40">{education.period}</p>
+            </div>
+          </Reveal>
+          <Reveal delay={160}>
+            <div className="h-full rounded-[20px] border border-white/10 bg-white/[0.02] p-6">
+              <div className="flex items-center gap-3 text-accent">
+                <GlobeIcon />
+                <span className="text-sm font-medium uppercase tracking-[0.15em]">{isEn ? "Languages" : "Языки"}</span>
+              </div>
+              <ul className="mt-4 space-y-3">
+                {languages.map((language) => (
+                  <li key={language.name} className="flex items-center justify-between gap-4 border-b border-white/5 pb-3 last:border-0 last:pb-0">
+                    <span className="font-medium text-white">{language.name}</span>
+                    <span className="rounded-full bg-white/[0.06] px-3 py-1 text-xs text-white/70">{language.level}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ---------- Experience ---------- */}
+      <section id="experience" className="container-page scroll-mt-24 py-16 md:py-24">
+        <Reveal>
+          <SectionHeading
+            eyebrow={isEn ? "Career" : "Карьера"}
+            title={isEn ? "Experience" : "Опыт работы"}
+            sub={isEn ? "Tap a role to see what I did there." : "Нажмите на позицию, чтобы увидеть детали."}
+          />
+        </Reveal>
+        <Reveal delay={80}>
+          <ExperienceAccordion items={experience} />
+        </Reveal>
+      </section>
+
+      {/* ---------- Skills ---------- */}
+      <section id="skills" className="container-page scroll-mt-24 py-16 md:py-24">
+        <Reveal>
+          <SectionHeading eyebrow={isEn ? "Toolbox" : "Инструменты"} title={isEn ? "Core Skills" : "Ключевые навыки"} />
+        </Reveal>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {skills.map((skill, index) => (
+            <Reveal key={skill.name} delay={(index % 4) * 70}>
+              <div className="group h-full rounded-[20px] border border-white/10 bg-white/[0.02] p-5 transition hover:-translate-y-1 hover:border-accent/40">
+                <span className="mb-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.06] text-accent transition group-hover:bg-accent group-hover:text-black">
+                  <SparkleIcon className="h-4 w-4" />
+                </span>
+                <h3 className="font-display text-lg font-semibold text-white">{skill.name}</h3>
+                <p className="mt-1.5 text-sm leading-6 text-white/60">{skill.sub}</p>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
+      {/* ---------- Projects ---------- */}
+      <section id="projects" className="container-page scroll-mt-24 py-16 md:py-24">
+        <Reveal>
+          <SectionHeading
+            eyebrow={isEn ? "Selected work" : "Избранное"}
+            title={isEn ? "Featured Projects" : "Избранные проекты"}
+            sub={isEn ? "Some of the apps I’m most proud of — built to perform in production." : "Приложения, которыми я горжусь, — созданные для продакшена."}
+          />
+        </Reveal>
+        <div className="grid gap-5 md:grid-cols-2">
+          {projects.map((project, index) => (
+            <Reveal key={project.name} delay={(index % 2) * 80}>
+              <article className="group flex h-full flex-col rounded-[20px] border border-white/10 bg-white/[0.02] p-6 transition hover:-translate-y-1 hover:border-accent/40 md:p-7">
+                <div className="flex items-center gap-4">
+                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-2xl">
+                    {project.emoji}
+                  </span>
+                  <h3 className="font-display text-2xl font-semibold text-white">{project.name}</h3>
+                </div>
+                <p className="mt-5 flex-1 text-[15px] leading-7 text-white/60">{project.desc}</p>
+                <div className="mt-6 flex flex-wrap gap-2">
+                  {project.playUrl ? (
+                    <a href={project.playUrl} target="_blank" rel="noreferrer" className="cv-store-btn">
+                      <PlayStoreIcon />
+                      Google Play
+                    </a>
+                  ) : null}
+                  {project.appStoreUrl ? (
+                    <a href={project.appStoreUrl} target="_blank" rel="noreferrer" className="cv-store-btn">
+                      <AppleIcon />
+                      App Store
+                    </a>
+                  ) : null}
+                  {!project.playUrl && !project.appStoreUrl ? (
+                    <span className="inline-flex items-center rounded-full border border-white/10 px-4 py-2 text-sm text-white/40">
+                      {isEn ? "Private project" : "Приватный проект"}
+                    </span>
+                  ) : null}
+                </div>
+              </article>
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
+      {/* ---------- Contact ---------- */}
+      <section id="contact" className="container-page scroll-mt-24 py-16 md:py-24">
+        <Reveal>
+          <div className="relative overflow-hidden rounded-[28px] border border-accent/30 bg-gradient-to-br from-accent/[0.12] via-white/[0.02] to-transparent p-8 text-center md:p-16">
+            <SparkleIcon className="spin-slow pointer-events-none absolute -right-10 -top-10 h-40 w-40 text-accent/10" />
+            <p className="text-sm font-medium uppercase tracking-[0.2em] text-accent">{isEn ? "Contact" : "Контакты"}</p>
+            <h2 className="mx-auto mt-4 max-w-3xl font-display text-4xl font-semibold leading-tight text-white md:text-6xl">
+              {isEn ? "Let’s work together" : "Давайте работать вместе"}
+            </h2>
+            <p className="mx-auto mt-5 max-w-xl text-lg text-white/60">
+              {isEn
+                ? "Have a project in mind or a question? Write me — I usually reply within a day."
+                : "Есть проект или вопрос? Напишите мне — обычно отвечаю в течение дня."}
+            </p>
+            <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+              <a
+                href={`mailto:${EMAIL}`}
+                className="inline-flex items-center gap-2 rounded-full bg-accent px-7 py-3.5 text-sm font-semibold text-black transition hover:brightness-110"
+              >
+                <MailIcon className="h-4 w-4" />
+                {EMAIL}
+              </a>
+              <a
+                href={LINKEDIN}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 px-6 py-3.5 text-sm font-medium text-white transition hover:border-accent hover:text-accent"
+              >
+                <LinkedInIcon className="h-4 w-4" />
+                LinkedIn
+              </a>
+              <a
+                href={GITHUB}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 px-6 py-3.5 text-sm font-medium text-white transition hover:border-accent hover:text-accent"
+              >
+                <GitHubIcon className="h-4 w-4" />
+                GitHub
+              </a>
+            </div>
+            <p className="mt-6 text-sm text-white/40">
+              {PHONE} · {isEn ? "Cairo, Egypt" : "Каир, Египет"}
+            </p>
+          </div>
+        </Reveal>
+      </section>
+
+      <footer className="border-t border-white/10">
+        <div className="container-page flex flex-col items-center justify-between gap-4 py-8 text-sm text-white/40 sm:flex-row">
+          <p>© {new Date().getFullYear()} Mostafa Omar</p>
+          <div className="flex items-center gap-5">
+            <a href="/en/blog" className="transition hover:text-accent">
+              {isEn ? "Blog" : "Блог"}
+            </a>
+            <a href={GITHUB} target="_blank" rel="noreferrer" className="transition hover:text-accent">
               GitHub
             </a>
-            <a
-              href="https://www.linkedin.com/in/mostafa-omar-418622170"
-              target="_blank"
-              rel="noreferrer"
-              className="text-sky-300 transition hover:text-sky-200"
-            >
+            <a href={LINKEDIN} target="_blank" rel="noreferrer" className="transition hover:text-accent">
               LinkedIn
             </a>
           </div>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <a href="#projects" className="rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-white">
-              {isEn ? "View projects" : "Смотреть проекты"}
-            </a>
-            <a
-              href={isEn ? "/Mostafa_Omar_CV_EN.pdf" : "/Mostafa_Omar_CV_RU.pdf"}
-              download
-              className="rounded-md border border-slate-600 px-4 py-2 text-sm transition hover:border-sky-400 hover:text-sky-200"
-            >
-              {isEn ? "Download CV" : "Скачать CV"}
-            </a>
-          </div>
         </div>
-      </section>
-
-      <section className="fade-up-delay-1 grid gap-3 md:grid-cols-3">
-        {stats.map((stat) => (
-          <div key={stat.label} className="glass-card hover-lift p-4 text-center">
-            <div className="text-3xl font-bold text-sky-200">{stat.value}</div>
-            <div className="mt-1 text-sm text-slate-300">{stat.label}</div>
-          </div>
-        ))}
-      </section>
-
-      <section className="fade-up-delay-1">
-        <h2 className="section-title">{isEn ? "About me" : "О себе"}</h2>
-        <article className="glass-card p-5">
-          <p className="text-sm leading-7 text-slate-300">{about}</p>
-        </article>
-      </section>
-
-      <section className="fade-up-delay-1">
-        <h2 className="section-title">{isEn ? "Education" : "Образование"}</h2>
-        <article className="glass-card p-5">
-          <h3 className="font-semibold">{education.degree}</h3>
-          <p className="mt-2 text-sm text-slate-300">{education.school}</p>
-          <p className="mt-1 text-sm text-slate-400">{education.period}</p>
-        </article>
-      </section>
-
-      <section id="projects" className="fade-up-delay-2">
-        <h2 className="section-title">{isEn ? "Featured Projects" : "Избранные проекты"}</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          {projects.map((project) => (
-            <article key={project.name} className="glass-card hover-lift p-5">
-              <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-800">{project.emoji}</div>
-              <h3 className="font-semibold">{project.name}</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-300">{project.desc}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {project.playUrl ? (
-                  <a
-                    href={project.playUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex rounded-md border border-slate-600 px-3 py-1.5 text-sm text-sky-300 transition hover:border-sky-400 hover:text-sky-200"
-                  >
-                    Play Store
-                  </a>
-                ) : null}
-                {project.appStoreUrl ? (
-                  <a
-                    href={project.appStoreUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex rounded-md border border-slate-600 px-3 py-1.5 text-sm text-sky-300 transition hover:border-sky-400 hover:text-sky-200"
-                  >
-                    App Store
-                  </a>
-                ) : null}
-                {!project.playUrl && !project.appStoreUrl ? (
-                  <span className="inline-flex rounded-md border border-slate-700 px-3 py-1.5 text-sm text-slate-400">
-                    {isEn ? "Private project" : "Приватный проект"}
-                  </span>
-                ) : null}
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="fade-up-delay-2">
-        <h2 className="section-title">{isEn ? "Core Skills" : "Ключевые навыки"}</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {skills.map((skill) => (
-            <article key={skill.name} className="glass-card hover-lift p-4">
-              <h3 className="font-medium">{skill.name}</h3>
-              <p className="mt-1 text-sm text-slate-300">{skill.sub}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="fade-up-delay-2">
-        <h2 className="section-title">{isEn ? "Work Experience" : "Опыт работы"}</h2>
-        <div className="space-y-4">
-          {experience.map((item) => (
-            <article key={`${item.company}-${item.period}`} className="glass-card p-5">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h3 className="font-semibold">{item.company}</h3>
-                <span className="text-sm text-slate-400">{item.period}</span>
-              </div>
-              <p className="mt-1 text-sm text-sky-200">{item.role}</p>
-              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 text-slate-300">
-                {item.points.map((point) => (
-                  <li key={point}>{point}</li>
-                ))}
-              </ul>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="fade-up-delay-2">
-        <h2 className="section-title">{isEn ? "Languages" : "Языки"}</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {languages.map((language) => (
-            <article key={language.name} className="glass-card p-4">
-              <h3 className="font-medium">{language.name}</h3>
-              <p className="mt-1 text-sm text-slate-300">{language.level}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+      </footer>
     </main>
   );
 }

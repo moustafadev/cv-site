@@ -17,14 +17,14 @@ export function SiteNav() {
   ];
 
   return (
-    <div className="flex items-center rounded-full border border-slate-800 bg-slate-900/60 p-0.5 text-sm">
+    <div className="flex items-center rounded-full border border-white/10 bg-white/[0.04] p-0.5 text-sm">
       {links.map((link) => (
         <a
           key={link.href}
           href={link.href}
           aria-current={link.active ? "page" : undefined}
           className={`rounded-full px-3 py-1 transition ${
-            link.active ? "bg-slate-800 font-medium text-sky-200" : "text-slate-400 hover:text-sky-300"
+            link.active ? "bg-white/10 font-medium text-white" : "text-white/50 hover:text-accent"
           }`}
         >
           {link.label}

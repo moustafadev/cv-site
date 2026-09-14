@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 body {
-  @apply bg-slate-950 text-slate-100 antialiased;
+  @apply bg-black font-sans text-slate-100 antialiased;
 }
 
 .container-page {
@@ -243,5 +243,92 @@ body {
   }
   to {
     opacity: 1;
+  }
+}
+
+/* ---------- CV page (ProfileX-style) ---------- */
+
+/* Scroll reveal: content is only hidden once JS is running (html.js), so it can never get stuck invisible. */
+.reveal {
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.js .reveal:not(.reveal-in) {
+  opacity: 0;
+  transform: translateY(28px);
+}
+
+/* Endless ticker: two identical copies side by side, shifted by one copy's width. */
+.ticker {
+  animation: tickerScroll 32s linear infinite;
+}
+
+.ticker:hover {
+  animation-play-state: paused;
+}
+
+@keyframes tickerScroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.spin-slow {
+  animation: spinSlow 14s linear infinite;
+}
+
+@keyframes spinSlow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.wave {
+  transform-origin: 70% 70%;
+  animation: wave 2.4s ease-in-out 1s infinite;
+}
+
+@keyframes wave {
+  0%,
+  60%,
+  100% {
+    transform: rotate(0deg);
+  }
+  10%,
+  30% {
+    transform: rotate(14deg);
+  }
+  20% {
+    transform: rotate(-8deg);
+  }
+  40% {
+    transform: rotate(-4deg);
+  }
+  50% {
+    transform: rotate(10deg);
+  }
+}
+
+.cv-icon-btn {
+  @apply inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/15 text-white/80 transition hover:border-accent hover:text-accent;
+}
+
+.cv-store-btn {
+  @apply inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-sm text-white/80 transition hover:border-accent hover:bg-accent hover:text-black;
+}
+
+/* "Reduce motion": keep reveals as plain fades and stop the looping decorations. */
+@media (prefers-reduced-motion: reduce) {
+  .js .reveal:not(.reveal-in) {
+    transform: none;
+  }
+
+  .ticker,
+  .spin-slow,
+  .wave {
+    animation: none;
   }
 }

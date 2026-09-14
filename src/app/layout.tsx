@@ -1,5 +1,6 @@
 import type {Metadata} from "next";
 import "./globals.css";
+import {clashDisplay, generalSans, onest} from "./fonts";
 
 export const metadata: Metadata = {
   icons: {
@@ -11,7 +12,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${clashDisplay.variable} ${generalSans.variable} ${onest.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{__html: "document.documentElement.classList.add('js')"}} />
+      </head>
       <body>{children}</body>
     </html>
   );

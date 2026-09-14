@@ -249,3 +249,106 @@ export async function d1GetStats(cfg: CfD1Config): Promise<{
 
   return {totalViews, bySource, recent};
 }
+
+export type VisitFilter = {
+  source?: string;
+  country?: string;
+  platform?: string;
+  path?: string;
+  /** Only visits at or after this timestamp (ms). */
+  since?: number;
+  /** Free text matched against path, referrer, user agent and source host. */
+  q?: string;
+  offset?: number;
+};
+
+export type VisitRow = {
+  t: number;
+  path: string;
+  locale: string;
+  referrer: string;
+  refHost: string;
+  source: string;
+  platform: string;
+  country: string;
+  ua: string;
+};
+
+export type VisitOption = {value: string; count: number};
+
+export const VISITS_PAGE_SIZE = 100;
+
+/** Filtered visits for /admin, plus the distinct values (with counts) that the filter dropdowns offer. */
+export async function d1GetVisits(
+  cfg: CfD1Config,
+  filter: VisitFilter
+): Promise<{total: number; rows: VisitRow[]; options: Record<"source" | "country" | "platform" | "path", VisitOption[]> | null}> {
+  await d1EnsureSchema(cfg);
+  const cols = await getCvViewsColumns(cfg);
+  // Same fallbacks the table shows: source → ref_host, empty country → ZZ, empty platform → unknown.
+  const exprs = {
+    source: cols.has("source") ? "COALESCE(NULLIF(source, ''), ref_host, '')" : "COALESCE(ref_host, '')",
+    country: cols.has("country") ? "COALESCE(NULLIF(country, ''), 'ZZ')" : "'ZZ'",
+    platform: cols.has("platform") ? "COALESCE(NULLIF(platform, ''), 'unknown')" : "'unknown'",
+    path: "path"
+  } as const;
+
+  const where: string[] = [];
+  const params: string[] = [];
+  for (const key of ["source", "country", "platform", "path"] as const) {
+    const value = filter[key];
+    if (value) {
+      where.push(`${exprs[key]} = ?`);
+      params.push(value);
+    }
+  }
+  if (filter.since && filter.since > 0) {
+    where.push("created_at >= ?");
+    params.push(String(Math.floor(filter.since)));
+  }
+  if (filter.q) {
+    const like = `%${filter.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    where.push(
+      "(path LIKE ? ESCAPE '\\' OR COALESCE(referrer, '') LIKE ? ESCAPE '\\' OR COALESCE(user_agent, '') LIKE ? ESCAPE '\\' OR COALESCE(ref_host, '') LIKE ? ESCAPE '\\')"
+    );
+    params.push(like, like, like, like);
+  }
+  const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  const offset = Math.max(0, Math.floor(filter.offset ?? 0));
+  const withOptions = offset === 0;
+
+  const batch = await d1Post(cfg, {
+    batch: [
+      {sql: `SELECT COUNT(*) AS c FROM cv_views ${whereSql}`, params},
+      {
+        sql: `SELECT created_at AS t, path, locale, ref_host AS refHost, ${exprs.source} AS source, ${exprs.platform} AS platform,
+                ${exprs.country} AS country, referrer, user_agent AS ua
+              FROM cv_views ${whereSql} ORDER BY created_at DESC LIMIT ${VISITS_PAGE_SIZE} OFFSET ${offset}`,
+        params
+      },
+      ...(withOptions
+        ? (["source", "country", "platform", "path"] as const).map((key) => ({
+            sql: `SELECT ${exprs[key]} AS v, COUNT(*) AS n FROM cv_views GROUP BY v ORDER BY n DESC LIMIT 60`
+          }))
+        : [])
+    ]
+  });
+
+  const parts = batch.result ?? [];
+  const total = Number(parts[0]?.results?.[0]?.c ?? 0) || 0;
+  const rows = (parts[1]?.results ?? []).map((r) => ({
+    t: Number(r.t ?? 0) || 0,
+    path: String(r.path ?? ""),
+    locale: String(r.locale ?? ""),
+    refHost: String(r.refHost ?? ""),
+    source: String(r.source ?? ""),
+    platform: String(r.platform ?? ""),
+    country: String(r.country ?? ""),
+    referrer: String(r.referrer ?? ""),
+    ua: String(r.ua ?? "")
+  }));
+  const toOptions = (i: number) =>
+    (parts[i]?.results ?? []).map((r) => ({value: String(r.v ?? ""), count: Number(r.n ?? 0) || 0})).filter((o) => o.value);
+  const options = withOptions ? {source: toOptions(2), country: toOptions(3), platform: toOptions(4), path: toOptions(5)} : null;
+  return {total, rows, options};
+}

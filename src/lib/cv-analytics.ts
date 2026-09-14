@@ -1,4 +1,13 @@
-import {d1GetStats, d1RecordView, getCfD1Config} from "@/lib/cv-analytics-d1";
+import {
+  d1GetStats,
+  d1GetVisits,
+  d1RecordView,
+  getCfD1Config,
+  VISITS_PAGE_SIZE,
+  type VisitFilter,
+  type VisitOption,
+  type VisitRow
+} from "@/lib/cv-analytics-d1";
 
 function useMemoryStore(): boolean {
   return process.env.NODE_ENV === "development" && process.env.CV_ANALYTICS_MEMORY === "1";
@@ -167,5 +176,65 @@ export async function getCvStats(): Promise<CvStats | null> {
   } catch (error) {
     lastD1Error = error instanceof Error ? error.message.slice(0, 300) : "Unknown D1 error";
     return {totalViews: 0, bySource: [], recent: []};
+  }
+}
+
+export type VisitsResult = {
+  total: number;
+  rows: VisitRow[];
+  options: Record<"source" | "country" | "platform" | "path", VisitOption[]> | null;
+};
+
+/** In-memory (dev) twin of d1GetVisits, over the last 500 visits kept in RAM. */
+function filterMemoryVisits(filter: VisitFilter): VisitsResult {
+  const all = memRecent
+    .map((line) => {
+      try {
+        return JSON.parse(line) as VisitRow;
+      } catch {
+        return null;
+      }
+    })
+    .filter((row): row is VisitRow => row !== null)
+    .map((row) => ({
+      ...row,
+      source: row.source || row.refHost,
+      country: row.country || "ZZ",
+      platform: row.platform || "unknown"
+    }));
+  const q = filter.q?.toLowerCase();
+  const matches = all.filter(
+    (row) =>
+      (!filter.source || row.source === filter.source) &&
+      (!filter.country || row.country === filter.country) &&
+      (!filter.platform || row.platform === filter.platform) &&
+      (!filter.path || row.path === filter.path) &&
+      (!filter.since || row.t >= filter.since) &&
+      (!q || [row.path, row.referrer, row.ua, row.refHost].some((v) => v.toLowerCase().includes(q)))
+  );
+  const offset = Math.max(0, filter.offset ?? 0);
+  const count = (key: "source" | "country" | "platform" | "path") =>
+    [...all.reduce((m, row) => m.set(row[key], (m.get(row[key]) ?? 0) + 1), new Map<string, number>())]
+      .map(([value, n]) => ({value, count: n}))
+      .filter((o) => o.value)
+      .sort((a, b) => b.count - a.count);
+  return {
+    total: matches.length,
+    rows: matches.slice(offset, offset + VISITS_PAGE_SIZE),
+    options: offset === 0 ? {source: count("source"), country: count("country"), platform: count("platform"), path: count("path")} : null
+  };
+}
+
+export async function getVisits(filter: VisitFilter): Promise<VisitsResult | null> {
+  if (useMemoryStore()) return filterMemoryVisits(filter);
+  const d1 = getCfD1Config();
+  if (!d1) return null;
+  try {
+    const result = await d1GetVisits(d1, filter);
+    lastD1Error = null;
+    return result;
+  } catch (error) {
+    lastD1Error = error instanceof Error ? error.message.slice(0, 300) : "Unknown D1 error";
+    throw error;
   }
 }

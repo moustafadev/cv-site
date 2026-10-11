@@ -11,7 +11,7 @@ export const TRIAL_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Extra installs the same code can unlock after the pair is complete (phone changes, reinstalls). */
 const MAX_RESTORES = 2;
-const DEFAULT_AI_DAILY_LIMIT = 10;
+const DEFAULT_AI_DAILY_LIMIT = 2;
 
 export type DeviceStatus = "trial" | "unlocked" | "paid";
 export type EntitlementState = "trial" | "unlocked" | "paid" | "expired";
@@ -36,6 +36,8 @@ export type Entitlement = {
   /** True once someone joined this device's code (or this device joined someone's). */
   partnerJoined: boolean;
   aiDailyLimit: number;
+  /** Questions left today (UTC day), so the app can show «1 of 2 left». */
+  aiRemainingToday: number;
 };
 
 function nowMs(): number {
@@ -147,7 +149,8 @@ export async function getEntitlement(device: Device): Promise<Entitlement> {
     trialDaysLeft: state === "trial" ? Math.max(1, Math.ceil((device.trialEndsAt - now) / DAY_MS)) : 0,
     pairCode: device.pairCode || null,
     partnerJoined,
-    aiDailyLimit: aiDailyLimit()
+    aiDailyLimit: aiDailyLimit(),
+    aiRemainingToday: Math.max(0, aiDailyLimit() - (await aiUsedToday(device.id)))
   };
 }
 
@@ -250,11 +253,24 @@ export async function restoreWithCode(device: Device, rawCode: string): Promise<
   return "restored";
 }
 
+function utcDay(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+async function aiUsedToday(deviceId: string): Promise<number> {
+  const rows = await pauzoQuery(`SELECT count FROM pauzo_counters WHERE key = ? AND day = ?`, [`ai:${deviceId}`, utcDay()]);
+  return Number(rows[0]?.count ?? 0);
+}
+
 /** Returns false when the device has used up today's AI questions. */
 export async function consumeAiQuota(device: Device): Promise<boolean> {
   const day = new Date().toISOString().slice(0, 10);
   const count = await bumpDailyCounter(`ai:${device.id}`, day);
   return count <= aiDailyLimit();
+}
+
+export async function refundAiQuota(device: Device): Promise<void> {
+  await pauzoQuery(`UPDATE pauzo_counters SET count = MAX(count - 1, 0) WHERE key = ? AND day = ?`, [`ai:${device.id}`, utcDay()]);
 }
 
 export async function consumeIpQuota(ip: string, action: string, limit: number): Promise<boolean> {

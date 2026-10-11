@@ -52,9 +52,9 @@ Fixed questions only: `month_summary`, `how_to_save`, `can_i_buy`,
 `goal_eta`, `vs_last_month`, `plan_review`. The app sends aggregates (plan,
 totals, totals per category, goal progress, the wish being considered,
 limits) — never transactions or comments. Nothing is stored; the answer comes
-from Gemini (`PAUZO_GEMINI_API_KEY`, model `PAUZO_GEMINI_MODEL`, default
-`gemini-2.5-flash`) in the language of `locale` (`ar-EG` → Egyptian Arabic).
-`PAUZO_AI_DAILY_LIMIT` questions per device per day (default 10).
+from Gemini (`PAUZO_GEMINI_API_KEY`, model `PAUZO_GEMINI_MODEL` or auto:
+newest Flash) in the language of `locale` (`ar-EG` → Egyptian Arabic).
+`PAUZO_AI_DAILY_LIMIT` questions per device per day (default 2); a failed answer is refunded. The model is the newest `gemini-X-flash` the key can call unless `PAUZO_GEMINI_MODEL` pins one.
 
 ```json
 {

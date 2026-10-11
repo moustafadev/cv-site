@@ -108,29 +108,79 @@ export class GeminiError extends Error {
   }
 }
 
-export async function askGemini(prompt: {system: string; user: string}): Promise<string> {
-  const key = process.env.PAUZO_GEMINI_API_KEY?.trim();
-  if (!key) throw new Error("gemini_not_configured");
-  const model = process.env.PAUZO_GEMINI_MODEL?.trim() || "gemini-2.5-flash";
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+const GEMINI_API = "https://generativelanguage.googleapis.com/v1beta";
+
+type ModelInfo = {name?: string; supportedGenerationMethods?: string[]};
+
+const modelCache = globalThis as unknown as {__pauzoGeminiModel?: string};
+
+function flashVersion(id: string): number | null {
+  const m = /^gemini-(\d+(?:\.\d+)?)-flash$/.exec(id);
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * Google retires Flash versions often (2.5 started returning 404 for new
+ * keys), so unless PAUZO_GEMINI_MODEL pins one, the newest stable
+ * `gemini-X-flash` this key can call is looked up and kept per isolate.
+ */
+async function resolveModel(key: string, refresh = false): Promise<string> {
+  const pinned = process.env.PAUZO_GEMINI_MODEL?.trim();
+  if (pinned) return pinned;
+  if (modelCache.__pauzoGeminiModel && !refresh) return modelCache.__pauzoGeminiModel;
+  const res = await fetch(`${GEMINI_API}/models?pageSize=200`, {headers: {"x-goog-api-key": key}, cache: "no-store"});
+  const json = (await res.json()) as {models?: ModelInfo[]; error?: {message?: string}};
+  if (!res.ok) throw new GeminiError(`models_${res.status}`, json.error?.message ?? "");
+  const best = (json.models ?? [])
+    .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
+    .map((m) => String(m.name ?? "").replace(/^models\//, ""))
+    .map((id) => ({id, version: flashVersion(id)}))
+    .filter((m): m is {id: string; version: number} => m.version !== null)
+    .sort((a, b) => b.version - a.version)[0];
+  if (!best) throw new GeminiError("no_model", "no gemini-X-flash model available for this key");
+  modelCache.__pauzoGeminiModel = best.id;
+  return best.id;
+}
+
+function thinkingConfig(model: string): Record<string, unknown> {
+  // 2.x spends maxOutputTokens on hidden thinking unless the budget is 0;
+  // 3.x takes a level instead. These answers are short, so keep it minimal.
+  return (flashVersion(model) ?? 3) < 3 ? {thinkingBudget: 0} : {thinkingLevel: "low"};
+}
+
+async function generate(key: string, model: string, prompt: {system: string; user: string}) {
+  return fetch(`${GEMINI_API}/models/${model}:generateContent`, {
     method: "POST",
     headers: {"Content-Type": "application/json", "x-goog-api-key": key},
     body: JSON.stringify({
       systemInstruction: {parts: [{text: prompt.system}]},
       contents: [{role: "user", parts: [{text: prompt.user}]}],
-      // 2.5 models count hidden "thinking" against maxOutputTokens; with a
-      // small budget the visible answer came back empty. These answers are
-      // short summaries, so thinking is switched off.
-      generationConfig: {temperature: 0.4, maxOutputTokens: 1024, thinkingConfig: {thinkingBudget: 0}}
+      generationConfig: {temperature: 0.4, maxOutputTokens: 1024, thinkingConfig: thinkingConfig(model)}
     }),
     cache: "no-store"
   });
+}
+
+export async function askGemini(prompt: {system: string; user: string}): Promise<string> {
+  const key = process.env.PAUZO_GEMINI_API_KEY?.trim();
+  if (!key) throw new Error("gemini_not_configured");
+  let model = await resolveModel(key);
+  let res = await generate(key, model, prompt);
+  // The cached model was retired since the isolate started: look again once.
+  if (res.status === 404 && !process.env.PAUZO_GEMINI_MODEL?.trim()) {
+    model = await resolveModel(key, true);
+    res = await generate(key, model, prompt);
+  }
   const json = (await res.json()) as {
-    candidates?: {content?: {parts?: {text?: string}[]}; finishReason?: string}[];
+    candidates?: {content?: {parts?: {text?: string; thought?: boolean}[]}; finishReason?: string}[];
     error?: {message?: string};
   };
-  if (!res.ok) throw new GeminiError(`http_${res.status}`, json.error?.message ?? "");
-  const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("").trim();
-  if (!text) throw new GeminiError("empty", json.candidates?.[0]?.finishReason ?? "no_candidates");
+  if (!res.ok) throw new GeminiError(`http_${res.status}`, `${model}: ${json.error?.message ?? ""}`);
+  const text = json.candidates?.[0]?.content?.parts
+    ?.filter((p) => !p.thought)
+    .map((p) => p.text ?? "")
+    .join("")
+    .trim();
+  if (!text) throw new GeminiError("empty", `${model}: ${json.candidates?.[0]?.finishReason ?? "no_candidates"}`);
   return text;
 }

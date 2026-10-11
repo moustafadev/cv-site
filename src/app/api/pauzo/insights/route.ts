@@ -1,5 +1,5 @@
 import {NextResponse} from "next/server";
-import {consumeAiQuota, getEntitlement} from "@/lib/pauzo";
+import {consumeAiQuota, getEntitlement, refundAiQuota} from "@/lib/pauzo";
 import {askGemini, buildPrompt, GeminiError, QUESTIONS, type InsightInput, type QuestionId} from "@/lib/pauzo-insights";
 import {cleanString, pauzoError, readJson, requireDevice} from "@/lib/pauzo-request";
 
@@ -71,10 +71,20 @@ export async function POST(request: Request) {
     const input = parseInput(await readJson<Record<string, unknown>>(request));
     if (!input) return NextResponse.json({ok: false, error: "invalid_question"}, {status: 400});
     if (!(await consumeAiQuota(device))) {
-      return NextResponse.json({ok: false, error: "daily_limit"}, {status: 429});
+      return NextResponse.json(
+        {ok: false, error: "daily_limit", entitlement: await getEntitlement(device)},
+        {status: 429}
+      );
     }
-    const text = await askGemini(buildPrompt(input));
-    return NextResponse.json({ok: true, text});
+    let text: string;
+    try {
+      text = await askGemini(buildPrompt(input));
+    } catch (error) {
+      // A failed answer shouldn't cost one of the two daily questions.
+      await refundAiQuota(device);
+      throw error;
+    }
+    return NextResponse.json({ok: true, text, entitlement: await getEntitlement(device)});
   } catch (error) {
     if (error instanceof Error && error.message === "gemini_not_configured") {
       return NextResponse.json({ok: false, error: "ai_not_configured"}, {status: 503});

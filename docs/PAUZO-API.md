@@ -34,6 +34,15 @@ are stored hashed.
 | POST | `/pair/restore` | `{code}` | `{entitlement}`; 409 with `error` ∈ `invalid_code`, `pair_incomplete`, `restore_limit` |
 | POST | `/insights` | see below | `{text}`; 402 `locked`, 429 `daily_limit`, 503 `ai_not_configured` |
 | GET | `/api/admin/pauzo/stats` | admin cookie | `{stats}` |
+| GET | `/api/admin/pauzo?status=&q=` | admin cookie | `{stats, daily, pairs, devices}` for `/admin/pauzo` |
+| POST | `/api/admin/pauzo/device` | `{id, action}` admin cookie | `action` ∈ `unlock`, `extend_trial` (+7 days), `reset_trial` (undo an admin unlock) |
+
+## Admin page
+
+`/admin/pauzo` (log in at `/admin` first): installs, unlock rate, trials
+running / over, codes created vs completed, AI questions today, a 14-day
+installs/unlocks chart, the newest devices (filter by state, search by device
+id or `PZ-` code) with support actions, and the newest invite codes.
 
 `entitlement`: `{state: trial|unlocked|paid|expired, trialEndsAt, trialDaysLeft, pairCode, partnerJoined, aiDailyLimit}`.
 

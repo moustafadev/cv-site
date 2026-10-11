@@ -160,6 +160,9 @@ export default function AdminPage() {
             <a href="/admin/blog" className="rounded-md border border-sky-700 px-3 py-1.5 text-sm text-sky-200 hover:border-sky-400">
               Blog posts &amp; comments →
             </a>
+            <a href="/admin/pauzo" className="rounded-md border border-violet-700 px-3 py-1.5 text-sm text-violet-200 hover:border-violet-400">
+              Pauzo app →
+            </a>
             <button
               type="button"
               onClick={() => void logout()}

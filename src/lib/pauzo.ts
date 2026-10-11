@@ -267,6 +267,8 @@ export type PauzoStats = {
   devices: number;
   activeLast7Days: number;
   trial: number;
+  /** Trial ran out and the device never unlocked. */
+  expired: number;
   unlocked: number;
   paid: number;
   pairsCreated: number;
@@ -281,11 +283,12 @@ export async function getPauzoStats(): Promise<PauzoStats> {
     {
       sql: `SELECT COUNT(*) AS devices,
               SUM(CASE WHEN last_seen_at >= ? THEN 1 ELSE 0 END) AS active,
-              SUM(CASE WHEN status = 'trial' THEN 1 ELSE 0 END) AS trial,
+              SUM(CASE WHEN status = 'trial' AND trial_ends_at > ? THEN 1 ELSE 0 END) AS trial,
+              SUM(CASE WHEN status = 'trial' AND trial_ends_at <= ? THEN 1 ELSE 0 END) AS expired,
               SUM(CASE WHEN status = 'unlocked' THEN 1 ELSE 0 END) AS unlocked,
               SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) AS paid
             FROM pauzo_devices`,
-      params: [weekAgo]
+      params: [weekAgo, nowMs(), nowMs()]
     },
     {
       sql: `SELECT COUNT(*) AS created, SUM(CASE WHEN partner_id <> '' THEN 1 ELSE 0 END) AS completed FROM pauzo_pairs`
@@ -298,10 +301,194 @@ export async function getPauzoStats(): Promise<PauzoStats> {
     devices: Number(d.devices ?? 0),
     activeLast7Days: Number(d.active ?? 0),
     trial: Number(d.trial ?? 0),
+    expired: Number(d.expired ?? 0),
     unlocked: Number(d.unlocked ?? 0),
     paid: Number(d.paid ?? 0),
     pairsCreated: Number(p.created ?? 0),
     pairsCompleted: Number(p.completed ?? 0),
     aiQuestionsToday: Number(ai?.[0]?.total ?? 0)
   };
+}
+
+// ---------------------------------------------------------------- admin
+
+export type AdminDeviceFilter = "all" | "trial" | "expired" | "unlocked" | "paid";
+
+export type AdminDevice = {
+  id: string;
+  platform: string;
+  appVersion: string;
+  locale: string;
+  createdAt: number;
+  lastSeenAt: number;
+  trialEndsAt: number;
+  state: EntitlementState;
+  unlockSource: string;
+  unlockedAt: number;
+  pairCode: string;
+};
+
+export type AdminPair = {
+  code: string;
+  creatorId: string;
+  creatorPlatform: string;
+  creatorLocale: string;
+  partnerId: string;
+  partnerPlatform: string;
+  partnerLocale: string;
+  restores: number;
+  createdAt: number;
+  joinedAt: number;
+};
+
+export type DailyCount = {day: string; registered: number; unlocked: number};
+
+const ADMIN_PAGE_SIZE = 50;
+
+function rowToAdminDevice(row: Row, now: number): AdminDevice {
+  const status = String(row.status);
+  const trialEndsAt = Number(row.trial_ends_at);
+  const state: EntitlementState =
+    status === "paid" ? "paid" : status === "unlocked" ? "unlocked" : now < trialEndsAt ? "trial" : "expired";
+  return {
+    id: String(row.id),
+    platform: String(row.platform ?? ""),
+    appVersion: String(row.app_version ?? ""),
+    locale: String(row.locale ?? ""),
+    createdAt: Number(row.created_at),
+    lastSeenAt: Number(row.last_seen_at),
+    trialEndsAt,
+    state,
+    unlockSource: String(row.unlock_source ?? ""),
+    unlockedAt: Number(row.unlocked_at ?? 0),
+    pairCode: String(row.pair_code ?? "")
+  };
+}
+
+/** Newest first; [query] matches a device id prefix or a pair code. */
+export async function listDevices(filter: AdminDeviceFilter, query: string): Promise<AdminDevice[]> {
+  const now = nowMs();
+  const where: string[] = [];
+  const params: (string | number)[] = [];
+  switch (filter) {
+    case "trial":
+      where.push("status = 'trial' AND trial_ends_at > ?");
+      params.push(now);
+      break;
+    case "expired":
+      where.push("status = 'trial' AND trial_ends_at <= ?");
+      params.push(now);
+      break;
+    case "unlocked":
+    case "paid":
+      where.push("status = ?");
+      params.push(filter);
+      break;
+    case "all":
+      break;
+  }
+  const q = query.trim();
+  if (q) {
+    const code = normalizeCode(q);
+    where.push(code ? "(id LIKE ? OR pair_code = ?)" : "id LIKE ?");
+    params.push(`${q.toLowerCase()}%`);
+    if (code) params.push(code);
+  }
+  const rows = await pauzoQuery(
+    `SELECT * FROM pauzo_devices ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+     ORDER BY created_at DESC LIMIT ${ADMIN_PAGE_SIZE}`,
+    params
+  );
+  return rows.map((row) => rowToAdminDevice(row, now));
+}
+
+export async function listPairs(): Promise<AdminPair[]> {
+  const rows = await pauzoQuery(
+    `SELECT p.*, c.platform AS c_platform, c.locale AS c_locale,
+            d.platform AS p_platform, d.locale AS p_locale
+     FROM pauzo_pairs p
+     LEFT JOIN pauzo_devices c ON c.id = p.creator_id
+     LEFT JOIN pauzo_devices d ON d.id = p.partner_id
+     ORDER BY p.created_at DESC LIMIT ${ADMIN_PAGE_SIZE}`
+  );
+  return rows.map((row) => ({
+    code: String(row.code),
+    creatorId: String(row.creator_id),
+    creatorPlatform: String(row.c_platform ?? ""),
+    creatorLocale: String(row.c_locale ?? ""),
+    partnerId: String(row.partner_id ?? ""),
+    partnerPlatform: String(row.p_platform ?? ""),
+    partnerLocale: String(row.p_locale ?? ""),
+    restores: Number(row.restores ?? 0),
+    createdAt: Number(row.created_at),
+    joinedAt: Number(row.joined_at ?? 0)
+  }));
+}
+
+/** New installs and unlocks per UTC day, oldest first, zero-filled. */
+export async function dailyCounts(days: number): Promise<DailyCount[]> {
+  const start = new Date();
+  start.setUTCHours(0, 0, 0, 0);
+  start.setUTCDate(start.getUTCDate() - (days - 1));
+  const since = start.getTime();
+  const [registered, unlocked] = await pauzoBatch([
+    {
+      sql: `SELECT CAST((created_at - ?) / ${DAY_MS} AS INTEGER) AS d, COUNT(*) AS n FROM pauzo_devices
+            WHERE created_at >= ? GROUP BY d`,
+      params: [since, since]
+    },
+    {
+      sql: `SELECT CAST((unlocked_at - ?) / ${DAY_MS} AS INTEGER) AS d, COUNT(*) AS n FROM pauzo_devices
+            WHERE unlocked_at >= ? GROUP BY d`,
+      params: [since, since]
+    }
+  ]);
+  const byIndex = (rows: Row[] | undefined) => {
+    const map = new Map<number, number>();
+    for (const row of rows ?? []) map.set(Math.floor(Number(row.d)), Number(row.n));
+    return map;
+  };
+  const reg = byIndex(registered);
+  const unl = byIndex(unlocked);
+  return Array.from({length: days}, (_, i) => ({
+    day: new Date(since + i * DAY_MS).toISOString().slice(0, 10),
+    registered: reg.get(i) ?? 0,
+    unlocked: unl.get(i) ?? 0
+  }));
+}
+
+export type AdminDeviceAction = "unlock" | "extend_trial" | "reset_trial";
+
+/**
+ * Support actions. `unlock` marks the device as unlocked by the admin;
+ * `extend_trial` adds TRIAL_DAYS from now (or from the current end, if later);
+ * `reset_trial` takes a manual unlock back.
+ */
+export async function adminUpdateDevice(id: string, action: AdminDeviceAction): Promise<boolean> {
+  const now = nowMs();
+  const before = await getDevice(id);
+  if (!before) return false;
+  switch (action) {
+    case "unlock":
+      await pauzoQuery(
+        `UPDATE pauzo_devices SET status = 'unlocked', unlock_source = 'admin', unlocked_at = ?
+         WHERE id = ? AND status <> 'paid'`,
+        [now, id]
+      );
+      break;
+    case "extend_trial":
+      await pauzoQuery(
+        `UPDATE pauzo_devices SET trial_ends_at = MAX(trial_ends_at, ?) + ? WHERE id = ?`,
+        [now, TRIAL_DAYS * DAY_MS, id]
+      );
+      break;
+    case "reset_trial":
+      await pauzoQuery(
+        `UPDATE pauzo_devices SET status = 'trial', unlock_source = '', unlocked_at = 0
+         WHERE id = ? AND unlock_source = 'admin'`,
+        [id]
+      );
+      break;
+  }
+  return true;
 }

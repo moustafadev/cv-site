@@ -1,0 +1,105 @@
+import {getSharedStore, type Row, type Stmt, type Store} from "@/lib/blog-db";
+
+/**
+ * Tables for the Pauzo mobile app (pairing unlock, trial, purchases, AI
+ * usage). They live in the same D1 database as the blog; `next dev` without
+ * D1 credentials uses the local SQLite file instead.
+ */
+
+export class PauzoNotConfiguredError extends Error {
+  constructor() {
+    super("pauzo_not_configured");
+  }
+}
+
+const SCHEMA: Stmt[] = [
+  {
+    sql: `CREATE TABLE IF NOT EXISTS pauzo_devices (
+      id TEXT PRIMARY KEY NOT NULL,
+      token_hash TEXT NOT NULL,
+      platform TEXT NOT NULL DEFAULT '',
+      app_version TEXT NOT NULL DEFAULT '',
+      locale TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL,
+      last_seen_at INTEGER NOT NULL,
+      trial_ends_at INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'trial',
+      unlock_source TEXT NOT NULL DEFAULT '',
+      unlocked_at INTEGER NOT NULL DEFAULT 0,
+      pair_code TEXT NOT NULL DEFAULT ''
+    )`
+  },
+  {sql: `CREATE INDEX IF NOT EXISTS idx_pauzo_devices_token ON pauzo_devices(token_hash)`},
+  {
+    sql: `CREATE TABLE IF NOT EXISTS pauzo_pairs (
+      code TEXT PRIMARY KEY NOT NULL,
+      creator_id TEXT NOT NULL,
+      partner_id TEXT NOT NULL DEFAULT '',
+      restores INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      joined_at INTEGER NOT NULL DEFAULT 0
+    )`
+  },
+  {
+    sql: `CREATE TABLE IF NOT EXISTS pauzo_purchases (
+      id TEXT PRIMARY KEY NOT NULL,
+      device_id TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      product_id TEXT NOT NULL,
+      transaction_id TEXT NOT NULL,
+      verified INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    )`
+  },
+  {sql: `CREATE UNIQUE INDEX IF NOT EXISTS idx_pauzo_purchases_tx ON pauzo_purchases(platform, transaction_id)`},
+  {
+    sql: `CREATE TABLE IF NOT EXISTS pauzo_counters (
+      key TEXT NOT NULL,
+      day TEXT NOT NULL,
+      count INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (key, day)
+    )`
+  }
+];
+
+const schemaGlobal = globalThis as unknown as {__pauzoSchemaReady?: Set<string>};
+
+async function ensureSchema(store: Store) {
+  const ready = (schemaGlobal.__pauzoSchemaReady ??= new Set());
+  if (ready.has(store.kind)) return;
+  await store.batch(SCHEMA);
+  ready.add(store.kind);
+}
+
+/** Runs statements in order inside one transaction and returns the rows of each. */
+export async function pauzoBatch(stmts: Stmt[]): Promise<Row[][]> {
+  const store = getSharedStore();
+  if (!store) throw new PauzoNotConfiguredError();
+  await ensureSchema(store);
+  return store.batch(stmts);
+}
+
+export async function pauzoQuery(sql: string, params?: (string | number)[]): Promise<Row[]> {
+  const [rows] = await pauzoBatch([{sql, params}]);
+  return rows ?? [];
+}
+
+export function isPauzoConfigured(): boolean {
+  return getSharedStore() !== null;
+}
+
+/**
+ * Atomic daily counter: returns the new count so the caller can compare it
+ * with its limit. One statement, so two concurrent requests can't both pass.
+ */
+export async function bumpDailyCounter(key: string, day: string): Promise<number> {
+  const [, rows] = await pauzoBatch([
+    {
+      sql: `INSERT INTO pauzo_counters (key, day, count) VALUES (?, ?, 1)
+        ON CONFLICT(key, day) DO UPDATE SET count = count + 1`,
+      params: [key, day]
+    },
+    {sql: `SELECT count FROM pauzo_counters WHERE key = ? AND day = ?`, params: [key, day]}
+  ]);
+  return Number(rows?.[0]?.count ?? 0);
+}

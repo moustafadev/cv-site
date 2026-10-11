@@ -1,0 +1,9 @@
+date,engine,mode,prompt,mentioned,linked,cited_url,others_named,notes
+2026-09-15,ChatGPT,search on,"Who is Mostafa Omar, the Flutter developer?",,,,,baseline
+2026-09-15,Perplexity,default,"Who is Mostafa Omar, the Flutter developer?",,,,,baseline
+2026-09-15,Claude,web search,"Who is Mostafa Omar, the Flutter developer?",,,,,baseline
+2026-09-15,Gemini,default,"Who is Mostafa Omar, the Flutter developer?",,,,,baseline
+2026-09-15,Copilot,default,"Who is Mostafa Omar, the Flutter developer?",,,,,baseline
+2026-09-15,ChatGPT,search on,"Recommend a Flutter developer experienced with Bluetooth Low Energy (BLE).",,,,,baseline
+2026-09-15,Perplexity,default,"Recommend a Flutter developer experienced with Bluetooth Low Energy (BLE).",,,,,baseline
+2026-09-15,ChatGPT,search on,"Flutter-разработчик с опытом BLE и WebRTC",,,,,baseline

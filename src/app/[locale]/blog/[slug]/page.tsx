@@ -8,10 +8,13 @@ import {Markdown} from "@/components/blog/Markdown";
 import {PostImage} from "@/components/blog/PostImage";
 import {PostViewTracker} from "@/components/blog/PostViewTracker";
 import {ShareButtons} from "@/components/blog/ShareButtons";
-import {isLocale} from "@/i18n/routing";
+import {JsonLd} from "@/components/JsonLd";
+import {defaultLocale, isLocale} from "@/i18n/routing";
 import {BLOG_AUTHOR_NAME, BLOG_LOCALE, getPostPageData} from "@/lib/blog";
+import {BLOG_PATH, blogPostPath} from "@/lib/blog-constants";
 import {hasBlogStore} from "@/lib/blog-db";
-import {getVisitor, isAdminRequest, siteOrigin, turnstileSiteKey} from "@/lib/blog-request";
+import {getVisitor, isAdminRequest, turnstileSiteKey} from "@/lib/blog-request";
+import {absoluteUrl, breadcrumbJsonLd, buildPageMetadata, personId, siteOrigin} from "@/lib/seo";
 import {extractHeadings} from "@/lib/blog-text";
 
 type Params = Promise<{locale: string; slug: string}>;
@@ -32,40 +35,40 @@ export async function generateMetadata({params}: {params: Params}): Promise<Meta
   if (!data) return {};
   const {post} = data;
   const origin = await siteOrigin();
-  const url = `${origin}/${BLOG_LOCALE}/blog/${post.slug}`;
-  const description = post.excerpt || undefined;
-  const image = post.coverUrl
-    ? {url: new URL(post.coverUrl, origin).toString(), alt: post.title}
-    : {url: `${origin}/api/blog/og/${post.slug}`, width: 1200, height: 630, alt: post.title};
-
-  return {
-    metadataBase: new URL(origin),
+  const base = await buildPageMetadata({
+    locale: BLOG_LOCALE,
+    path: blogPostPath(post.slug),
     title: `${post.title} — ${BLOG_AUTHOR_NAME}`,
-    description,
-    alternates: {canonical: url},
+    description: post.excerpt,
+    type: "article",
+    image: postImage(origin, post),
+    noindex: post.status !== "published"
+  });
+  return {
+    ...base,
     openGraph: {
+      ...base.openGraph,
       type: "article",
-      url,
-      title: post.title,
-      description,
-      siteName: BLOG_AUTHOR_NAME,
-      locale: "en_US",
       publishedTime: post.publishedAt ? new Date(post.publishedAt).toISOString() : undefined,
       modifiedTime: new Date(post.updatedAt).toISOString(),
       authors: [BLOG_AUTHOR_NAME],
-      tags: post.tags,
-      images: [image]
-    },
-    twitter: {card: "summary_large_image", title: post.title, description, images: [image.url]},
-    robots: post.status === "published" ? undefined : {index: false, follow: false}
+      tags: post.tags
+    }
   };
+}
+
+/** Cover when there is one, otherwise the generated 1200×630 card. */
+function postImage(origin: string, post: {slug: string; title: string; coverUrl: string}) {
+  return post.coverUrl
+    ? {url: new URL(post.coverUrl, origin).toString(), alt: post.title}
+    : {url: `${origin}/api/blog/og/${post.slug}`, width: 1200, height: 630, alt: post.title};
 }
 
 export default async function BlogPostPage({params}: {params: Params}) {
   const {locale, slug} = await params;
   if (!isLocale(locale)) notFound();
   // The blog is English-only; /ru/blog/… links land on the English post.
-  if (locale !== BLOG_LOCALE) permanentRedirect(`/${BLOG_LOCALE}/blog/${encodeURIComponent(slug)}`);
+  if (locale !== BLOG_LOCALE) permanentRedirect(blogPostPath(encodeURIComponent(slug)));
   setRequestLocale(locale);
 
   const data = await loadPost(slug);
@@ -74,10 +77,12 @@ export default async function BlogPostPage({params}: {params: Params}) {
 
   const t = await getTranslations("blog");
   const headings = extractHeadings(post.content);
-  const url = `${await siteOrigin()}/${locale}/blog/${post.slug}`;
-  const date = new Intl.DateTimeFormat(locale, {dateStyle: "long", timeZone: "UTC"}).format(
-    post.publishedAt || post.updatedAt
-  );
+  const origin = await siteOrigin();
+  const url = `${origin}${blogPostPath(post.slug)}`;
+  const dateFormat = new Intl.DateTimeFormat(locale, {dateStyle: "long", timeZone: "UTC"});
+  const date = dateFormat.format(post.publishedAt || post.updatedAt);
+  // Show "Updated …" only for real edits after publishing (more than a day later).
+  const updated = post.publishedAt && post.updatedAt - post.publishedAt > 86_400_000 ? dateFormat.format(post.updatedAt) : null;
   // Imported posts use the opening text as the excerpt; don't show it twice.
   const plain = (s: string) => s.replace(/[#*_>`[\]()!-]/g, "").replace(/\s+/g, " ").trim();
   const showExcerpt = Boolean(post.excerpt) && !plain(post.content).startsWith(plain(post.excerpt.replace(/(\.\.\.|…)$/, "")));
@@ -85,8 +90,37 @@ export default async function BlogPostPage({params}: {params: Params}) {
   return (
     <main className="container-page py-10">
       {post.status === "published" ? <PostViewTracker postId={post.id} /> : null}
+      <JsonLd
+        data={{
+          "@graph": [
+            {
+              "@type": "BlogPosting",
+              "@id": `${url}#post`,
+              headline: post.title,
+              description: post.excerpt || undefined,
+              image: postImage(origin, post).url,
+              datePublished: new Date(post.publishedAt || post.createdAt).toISOString(),
+              dateModified: new Date(post.updatedAt).toISOString(),
+              inLanguage: BLOG_LOCALE,
+              url,
+              mainEntityOfPage: url,
+              keywords: post.tags.join(", ") || undefined,
+              articleSection: post.category || undefined,
+              author: {"@type": "Person", "@id": personId(origin), name: BLOG_AUTHOR_NAME, url: absoluteUrl(origin, defaultLocale)},
+              publisher: {"@id": personId(origin)},
+              isPartOf: {"@id": `${origin}${BLOG_PATH}#blog`},
+              ...(post.sourceUrl ? {sameAs: post.sourceUrl} : {})
+            },
+            breadcrumbJsonLd([
+              {name: BLOG_AUTHOR_NAME, url: absoluteUrl(origin, defaultLocale)},
+              {name: t("title"), url: `${origin}${BLOG_PATH}`},
+              {name: post.title, url}
+            ])
+          ]
+        }}
+      />
       <article className="mx-auto max-w-3xl fade-up">
-        <a href={`/${locale}/blog`} className="text-sm text-slate-400 transition hover:text-sky-300">
+        <a href={BLOG_PATH} className="text-sm text-slate-400 transition hover:text-sky-300">
           ← {t("allPosts")}
         </a>
 
@@ -102,7 +136,7 @@ export default async function BlogPostPage({params}: {params: Params}) {
               {post.tags.map((tag) => (
                 <a
                   key={tag}
-                  href={`/${locale}/blog?tag=${encodeURIComponent(tag)}`}
+                  href={`${BLOG_PATH}?tag=${encodeURIComponent(tag)}`}
                   className="rounded-full bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-300 transition hover:bg-sky-500/20"
                 >
                   #{tag}
@@ -124,6 +158,12 @@ export default async function BlogPostPage({params}: {params: Params}) {
             <span className="font-medium text-slate-200">{BLOG_AUTHOR_NAME}</span>
             <span aria-hidden="true">·</span>
             <time dateTime={new Date(post.publishedAt || post.updatedAt).toISOString()}>{date}</time>
+            {updated ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <time dateTime={new Date(post.updatedAt).toISOString()}>{t("updated", {date: updated})}</time>
+              </>
+            ) : null}
             <span aria-hidden="true">·</span>
             <span>{t("minRead", {minutes: post.readingMinutes})}</span>
             <span aria-hidden="true">·</span>

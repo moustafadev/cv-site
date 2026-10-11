@@ -28,7 +28,7 @@ function queryUrl(cfg: CfD1Config): string {
   return `${CF_API}/accounts/${cfg.accountId}/d1/database/${cfg.databaseId}/query`;
 }
 
-export async function d1Post(cfg: CfD1Config, body: {sql: string; params?: string[]} | {batch: {sql: string; params?: string[]}[]}): Promise<D1QueryResponse> {
+export async function d1Post(cfg: CfD1Config, body: {sql: string; params?: (string | number)[]} | {batch: {sql: string; params?: (string | number)[]}[]}): Promise<D1QueryResponse> {
   const res = await fetch(queryUrl(cfg), {
     method: "POST",
     headers: {

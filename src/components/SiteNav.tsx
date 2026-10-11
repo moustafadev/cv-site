@@ -2,18 +2,20 @@
 
 import {useLocale, useTranslations} from "next-intl";
 import {usePathname} from "next/navigation";
+import {isLocale, localePath} from "@/i18n/routing";
+import {BLOG_PATH} from "@/lib/blog-constants";
 
 /** CV / Blog switch in the header; the current section is highlighted. */
 export function SiteNav() {
   const t = useTranslations("nav");
   const locale = useLocale();
   const pathname = usePathname();
-  const onBlog = /^\/(en|ru)\/blog(\/|$)/.test(pathname);
+  const onBlog = /^(\/ru)?\/blog(\/|$)/.test(pathname);
 
   const links = [
-    {href: `/${locale}`, label: t("cv"), active: !onBlog},
+    {href: localePath(isLocale(locale) ? locale : "en"), label: t("cv"), active: !onBlog},
     // The blog is English-only, so it's the same link from either language of the CV.
-    {href: "/en/blog", label: t("blog"), active: onBlog}
+    {href: BLOG_PATH, label: t("blog"), active: onBlog}
   ];
 
   return (

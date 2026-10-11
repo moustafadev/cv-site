@@ -60,6 +60,7 @@
     },
     "onLinkedIn": "View on LinkedIn",
     "allCategories": "All",
-    "categories": "Categories"
+    "categories": "Categories",
+    "updated": "Updated {date}"
   }
 }

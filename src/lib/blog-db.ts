@@ -6,10 +6,10 @@ import {d1Post, getCfD1Config, type CfD1Config} from "@/lib/cv-analytics-d1";
  * back to a local SQLite file (data/blog-dev.sqlite) so the exact same SQL runs.
  */
 
-export type Stmt = {sql: string; params?: string[]};
+export type Stmt = {sql: string; params?: (string | number)[]};
 export type Row = Record<string, unknown>;
 
-type Store = {
+export type Store = {
   kind: "d1" | "dev-sqlite";
   batch(stmts: Stmt[]): Promise<Row[][]>;
 };
@@ -80,10 +80,15 @@ function d1Store(cfg: CfD1Config): Store {
 
 type SqliteDb = {
   exec(sql: string): void;
-  prepare(sql: string): {all(...params: string[]): Row[]};
+  prepare(sql: string): {all(...params: (string | number)[]): Row[]};
 };
 
 const devGlobal = globalThis as unknown as {__blogDevDb?: SqliteDb; __blogSchemaReady?: Set<string>};
+
+/** Same D1 database (or the dev SQLite file) for features that keep their own tables, e.g. the Pauzo API. */
+export function getSharedStore(): Store | null {
+  return getStore();
+}
 
 function openDevDb(): SqliteDb {
   if (devGlobal.__blogDevDb) return devGlobal.__blogDevDb;

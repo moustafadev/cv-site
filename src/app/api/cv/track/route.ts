@@ -2,7 +2,7 @@ import {NextResponse} from "next/server";
 import {recordCvView} from "@/lib/cv-analytics";
 
 export async function POST(request: Request) {
-  let body: {path?: string; locale?: string; landingReferrer?: string | null} = {};
+  let body: {path?: string; locale?: string; landingReferrer?: string | null; utmSource?: string | null} = {};
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -17,7 +17,8 @@ export async function POST(request: Request) {
     typeof body.landingReferrer === "string" ? body.landingReferrer.slice(0, 2000) : body.landingReferrer ?? null;
   const userAgent = request.headers.get("user-agent");
   const country = request.headers.get("cf-ipcountry") ?? request.headers.get("x-vercel-ip-country");
-  const result = await recordCvView({path, locale, landingReferrer, userAgent, country});
+  const utmSource = typeof body.utmSource === "string" ? body.utmSource.slice(0, 100) : null;
+  const result = await recordCvView({path, locale, landingReferrer, userAgent, country, utmSource});
   const isDev = process.env.NODE_ENV === "development";
   return NextResponse.json(result, {status: result.ok || isDev ? 200 : 503});
 }

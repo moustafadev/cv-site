@@ -1,6 +1,6 @@
 import {useTranslations} from "next-intl";
 import type {PostSummary} from "@/lib/blog";
-import {BLOG_AUTHOR_NAME, BLOG_LOCALE} from "@/lib/blog-constants";
+import {BLOG_AUTHOR_NAME, BLOG_LOCALE, blogPostPath} from "@/lib/blog-constants";
 
 const formatDate = new Intl.DateTimeFormat(BLOG_LOCALE, {dateStyle: "medium", timeZone: "UTC"});
 
@@ -9,7 +9,7 @@ export function PostCard({post, eager = false}: {post: PostSummary; eager?: bool
   const t = useTranslations("blog");
 
   return (
-    <a href={`/${BLOG_LOCALE}/blog/${post.slug}`} className="glass-card hover-lift group flex w-full flex-col overflow-hidden">
+    <a href={blogPostPath(post.slug)} className="glass-card hover-lift group flex w-full flex-col overflow-hidden">
       <div className="relative flex aspect-[16/10] w-full items-center justify-center overflow-hidden border-b border-slate-800 bg-slate-900">
         {post.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element

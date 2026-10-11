@@ -44,6 +44,25 @@ function detectSourceFromUserAgent(ua: string): string | null {
   return null;
 }
 
+/** AI answer engines, keyed by referrer host or utm_source (ChatGPT appends utm_source=chatgpt.com to links it cites). */
+const AI_ENGINES: [RegExp, string][] = [
+  [/(^|\.)(chatgpt\.com|chat\.openai\.com|openai\.com)$/, "ai:chatgpt"],
+  [/(^|\.)perplexity\.ai$/, "ai:perplexity"],
+  [/(^|\.)claude\.ai$/, "ai:claude"],
+  [/(^|\.)gemini\.google\.com$/, "ai:gemini"],
+  [/(^|\.)(copilot\.microsoft\.com|copilot\.cloud\.microsoft)$/, "ai:copilot"],
+  [/(^|\.)(you\.com|phind\.com|kagi\.com)$/, "ai:other"]
+];
+
+function detectAiEngine(refHost: string, utmSource: string | null | undefined): string | null {
+  for (const candidate of [refHost, (utmSource ?? "").toLowerCase().replace(/^https?:\/\//, "").split("/")[0] ?? ""]) {
+    const host = candidate.trim().toLowerCase();
+    if (!host) continue;
+    for (const [pattern, name] of AI_ENGINES) if (pattern.test(host)) return name;
+  }
+  return null;
+}
+
 function detectPlatformFromUserAgent(ua: string): string {
   const s = ua.toLowerCase();
   if (s.includes("android")) return "android";
@@ -79,11 +98,13 @@ export async function recordCvView(input: {
   landingReferrer: string | null;
   userAgent?: string | null;
   country?: string | null;
+  utmSource?: string | null;
 }): Promise<{ok: boolean; reason?: string}> {
   const refHost = safeRefHostField(parseRefHost(input.landingReferrer));
   const ua = (input.userAgent ?? "").slice(0, 400);
   const appSource = detectSourceFromUserAgent(ua);
-  const source = appSource ?? refHost;
+  // AI-referred visits get their own sources (ai:chatgpt, ai:perplexity…), separate from classic organic.
+  const source = detectAiEngine(refHost, input.utmSource) ?? appSource ?? refHost;
   const platform = detectPlatformFromUserAgent(ua);
   const country = (input.country ?? "").trim().slice(0, 3).toUpperCase() || "ZZ";
   const row = {

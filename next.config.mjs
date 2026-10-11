@@ -10,7 +10,9 @@ const nextConfig = {
     root: __dirname
   },
   experimental: {
-    mdxRs: true
+    mdxRs: true,
+    // Several root layouts ([locale], admin, wedding) → the 404 for unmatched URLs lives in app/global-not-found.tsx.
+    globalNotFound: true
   }
 };
 

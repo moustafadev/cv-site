@@ -3,6 +3,7 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {Markdown} from "@/components/blog/Markdown";
 import type {AdminComment, BlogPost, PostStatus, PostSummary} from "@/lib/blog";
+import {blogPostPath} from "@/lib/blog-constants";
 import {slugify} from "@/lib/blog-text";
 
 type Draft = {
@@ -373,7 +374,7 @@ export default function AdminBlogPage() {
               </h2>
               <div className="flex flex-wrap gap-2">
                 {draft.id ? (
-                  <a href={`/en/blog/${draft.slug}`} target="_blank" rel="noreferrer" className={btn}>
+                  <a href={blogPostPath(draft.slug)} target="_blank" rel="noreferrer" className={btn}>
                     {draft.status === "published" ? "View ↗" : "Preview page ↗"}
                   </a>
                 ) : null}
@@ -401,7 +402,7 @@ export default function AdminBlogPage() {
                   placeholder="my-post"
                 />
                 <span className="text-xs text-slate-500">
-                  /en/blog/{draft.slug || "…"}
+                  /blog/{draft.slug || "…"}
                   {draft.id && draft.status === "published" ? " — changing it breaks links already shared." : ""}
                 </span>
               </label>
@@ -608,7 +609,7 @@ export default function AdminBlogPage() {
                           {c.isAuthor ? <span className="text-xs text-sky-300">(you)</span> : null}
                           {c.parentId ? <span className="text-xs text-slate-500">reply</span> : null}
                           <span className="text-xs text-slate-500">on</span>
-                          <a href={`/en/blog/${c.postSlug}#comments`} target="_blank" rel="noreferrer" className="truncate text-xs text-sky-300 hover:underline">
+                          <a href={`${blogPostPath(c.postSlug)}#comments`} target="_blank" rel="noreferrer" className="truncate text-xs text-sky-300 hover:underline">
                             {c.postTitle}
                           </a>
                           <span className="text-xs text-slate-500">· {fmt(c.createdAt)}</span>

@@ -1,4 +1,4 @@
-import {cookies, headers} from "next/headers";
+import {cookies} from "next/headers";
 import {NextResponse} from "next/server";
 import {ADMIN_COOKIE, verifyAdminToken} from "@/lib/admin-session";
 import {BlogNotConfiguredError} from "@/lib/blog-db";
@@ -80,12 +80,4 @@ export async function verifyTurnstile(token: string, ip: string): Promise<boolea
   }
 }
 
-/** Public origin for share links and Open Graph URLs. */
-export async function siteOrigin(): Promise<string> {
-  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, "");
-  if (fromEnv) return fromEnv;
-  const h = await headers();
-  const host = h.get("x-forwarded-host") || h.get("host") || "localhost:3000";
-  const proto = h.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
-  return `${proto}://${host}`;
-}
+export {siteOrigin} from "@/lib/seo";

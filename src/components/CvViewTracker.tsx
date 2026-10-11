@@ -28,6 +28,7 @@ export function CvViewTracker({locale}: {locale: string}) {
 
     const landingReferrer = document.referrer || null;
     const path = window.location.pathname;
+    const utmSource = new URLSearchParams(window.location.search).get("utm_source");
 
     void (async () => {
       try {
@@ -36,7 +37,7 @@ export function CvViewTracker({locale}: {locale: string}) {
           headers: {"Content-Type": "application/json"},
           credentials: "same-origin",
           keepalive: true,
-          body: JSON.stringify({path, locale, landingReferrer})
+          body: JSON.stringify({path, locale, landingReferrer, utmSource})
         });
         // Only mark after a successful write; otherwise the same tab can retry (e.g. after redeploy / D1 fix).
         if (res.ok) markSessionTracked();

@@ -1,6 +1,6 @@
 import {NextResponse} from "next/server";
 import {consumeAiQuota, getEntitlement} from "@/lib/pauzo";
-import {askGemini, buildPrompt, QUESTIONS, type InsightInput, type QuestionId} from "@/lib/pauzo-insights";
+import {askGemini, buildPrompt, GeminiError, QUESTIONS, type InsightInput, type QuestionId} from "@/lib/pauzo-insights";
 import {cleanString, pauzoError, readJson, requireDevice} from "@/lib/pauzo-request";
 
 const MAX_BODY_BYTES = 8_000;
@@ -78,6 +78,11 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof Error && error.message === "gemini_not_configured") {
       return NextResponse.json({ok: false, error: "ai_not_configured"}, {status: 503});
+    }
+    // The upstream message goes to the Worker log only; the app gets a code.
+    if (error instanceof GeminiError) {
+      console.error("[pauzo:insights]", error.message);
+      return NextResponse.json({ok: false, error: `ai_${error.kind}`}, {status: 502});
     }
     return pauzoError(error);
   }

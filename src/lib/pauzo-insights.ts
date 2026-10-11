@@ -99,6 +99,15 @@ export function buildPrompt(input: InsightInput): {system: string; user: string}
   return {system, user: `${QUESTION_TASKS[input.question]}\n\nData:\n${lines.join("\n")}`};
 }
 
+export class GeminiError extends Error {
+  constructor(
+    public readonly kind: string,
+    detail: string
+  ) {
+    super(`gemini_${kind}: ${detail}`);
+  }
+}
+
 export async function askGemini(prompt: {system: string; user: string}): Promise<string> {
   const key = process.env.PAUZO_GEMINI_API_KEY?.trim();
   if (!key) throw new Error("gemini_not_configured");
@@ -109,16 +118,19 @@ export async function askGemini(prompt: {system: string; user: string}): Promise
     body: JSON.stringify({
       systemInstruction: {parts: [{text: prompt.system}]},
       contents: [{role: "user", parts: [{text: prompt.user}]}],
-      generationConfig: {temperature: 0.4, maxOutputTokens: 600}
+      // 2.5 models count hidden "thinking" against maxOutputTokens; with a
+      // small budget the visible answer came back empty. These answers are
+      // short summaries, so thinking is switched off.
+      generationConfig: {temperature: 0.4, maxOutputTokens: 1024, thinkingConfig: {thinkingBudget: 0}}
     }),
     cache: "no-store"
   });
   const json = (await res.json()) as {
-    candidates?: {content?: {parts?: {text?: string}[]}}[];
+    candidates?: {content?: {parts?: {text?: string}[]}; finishReason?: string}[];
     error?: {message?: string};
   };
-  if (!res.ok) throw new Error(`gemini_http_${res.status}: ${json.error?.message ?? ""}`);
+  if (!res.ok) throw new GeminiError(`http_${res.status}`, json.error?.message ?? "");
   const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("").trim();
-  if (!text) throw new Error("gemini_empty");
+  if (!text) throw new GeminiError("empty", json.candidates?.[0]?.finishReason ?? "no_candidates");
   return text;
 }

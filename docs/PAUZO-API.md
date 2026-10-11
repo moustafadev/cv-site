@@ -32,6 +32,7 @@ are stored hashed.
 | POST | `/pair/create` | — | `{code, entitlement}` (same code every call) |
 | POST | `/pair/join` | `{code}` | `{entitlement}`; 409 with `error` ∈ `invalid_code`, `own_code`, `pair_full`, `already_paired` |
 | POST | `/pair/restore` | `{code}` | `{entitlement}`; 409 with `error` ∈ `invalid_code`, `pair_incomplete`, `restore_limit` |
+| POST | `/purchase/verify` | `{platform: android, productId, purchaseToken}` or `{platform: ios, productId, transactionId}` | `{entitlement}` (state `paid`); 409 `purchase_invalid`, `purchase_pending`, `unknown_product`, `used_elsewhere`; 503 `purchase_not_configured` |
 | POST | `/insights` | see below | `{text}`; 402 `locked`, 429 `daily_limit`, 503 `ai_not_configured` |
 | GET | `/api/admin/pauzo/stats` | admin cookie | `{stats}` |
 | GET | `/api/admin/pauzo?status=&q=` | admin cookie | `{stats, daily, pairs, devices}` for `/admin/pauzo` |
@@ -45,6 +46,22 @@ installs/unlocks chart, the newest devices (filter by state, search by device
 id or `PZ-` code) with support actions, and the newest invite codes.
 
 `entitlement`: `{state: trial|unlocked|paid|expired, trialEndsAt, trialDaysLeft, pairCode, partnerJoined, aiDailyLimit}`.
+
+## Push, invite links, purchases
+
+- `GET /entitlement?fcmToken=` stores the device's FCM token. When a friend
+  joins a code, the code's creator gets a «your friend joined» push in their
+  language (`PAUZO_FCM_SERVICE_ACCOUNT`); without it the push is skipped.
+- `/pauzo/invite?code=PZ-XXXXX` is the shareable invite page. With the app
+  installed it opens Pauzo directly (App Links / Universal Links via
+  `/.well-known/assetlinks.json` and `/.well-known/apple-app-site-association`,
+  driven by `PAUZO_ANDROID_CERT_SHA256` and `PAUZO_APPLE_TEAM_ID`); otherwise it
+  links to Google Play with `referrer=pauzo_code=…`, which the app reads after
+  install.
+- `/purchase/verify` asks Google Play (`PAUZO_PLAY_SERVICE_ACCOUNT`) or the App
+  Store Server API (`PAUZO_APPLE_*`) about the one-time unlock before marking the
+  device `paid`. A transaction already used by another device is refused unless
+  it is the same platform's previous install (reinstall restore).
 
 ## Insights
 

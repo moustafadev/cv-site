@@ -1,4 +1,5 @@
 import {bumpDailyCounter, pauzoBatch, pauzoQuery} from "@/lib/pauzo-db";
+import {sendPartnerJoinedPush} from "@/lib/pauzo-push";
 import type {Row} from "@/lib/blog-db";
 
 /**
@@ -18,6 +19,7 @@ export type EntitlementState = "trial" | "unlocked" | "paid" | "expired";
 
 export type Device = {
   id: string;
+  fcmToken: string;
   platform: string;
   locale: string;
   createdAt: number;
@@ -47,6 +49,7 @@ function nowMs(): number {
 function rowToDevice(row: Row): Device {
   return {
     id: String(row.id),
+    fcmToken: String(row.fcm_token ?? ""),
     platform: String(row.platform ?? ""),
     locale: String(row.locale ?? ""),
     createdAt: Number(row.created_at),
@@ -112,7 +115,10 @@ export async function getDevice(id: string): Promise<Device | null> {
   return rows[0] ? rowToDevice(rows[0]) : null;
 }
 
-export async function touchDevice(id: string, input: {appVersion?: string; locale?: string}): Promise<void> {
+export async function touchDevice(
+  id: string,
+  input: {appVersion?: string; locale?: string; fcmToken?: string}
+): Promise<void> {
   const sets: string[] = ["last_seen_at = ?"];
   const params: (string | number)[] = [nowMs()];
   if (input.appVersion) {
@@ -122,6 +128,10 @@ export async function touchDevice(id: string, input: {appVersion?: string; local
   if (input.locale) {
     sets.push("locale = ?");
     params.push(input.locale);
+  }
+  if (input.fcmToken) {
+    sets.push("fcm_token = ?");
+    params.push(input.fcmToken);
   }
   params.push(id);
   await pauzoQuery(`UPDATE pauzo_devices SET ${sets.join(", ")} WHERE id = ?`, params);
@@ -227,6 +237,8 @@ export async function joinPair(device: Device, rawCode: string): Promise<JoinRes
   if (partnerId !== device.id) return "pair_full";
 
   await markUnlocked([creatorId, device.id], "pair", code);
+  const creator = await getDevice(creatorId);
+  if (creator?.fcmToken) await sendPartnerJoinedPush(creator.fcmToken, creator.locale);
   return "joined";
 }
 
@@ -324,6 +336,46 @@ export async function getPauzoStats(): Promise<PauzoStats> {
     pairsCompleted: Number(p.completed ?? 0),
     aiQuestionsToday: Number(ai?.[0]?.total ?? 0)
   };
+}
+
+/** Marks a device paid after the store confirmed the purchase; idempotent per transaction. */
+export async function recordPurchase(
+  device: Device,
+  input: {platform: string; productId: string; transactionId: string}
+): Promise<"paid" | "used_elsewhere"> {
+  const existing = await pauzoQuery(
+    `SELECT device_id FROM pauzo_purchases WHERE platform = ? AND transaction_id = ?`,
+    [input.platform, input.transactionId]
+  );
+  const owner = existing[0] ? String(existing[0].device_id) : null;
+  // A reinstall restores the same purchase onto its new device id; a
+  // stranger replaying someone else's receipt would need that receipt.
+  if (owner && owner !== device.id) {
+    const previous = await getDevice(owner);
+    if (previous && previous.platform === device.platform && previous.status === "paid") {
+      await pauzoQuery(`UPDATE pauzo_purchases SET device_id = ? WHERE platform = ? AND transaction_id = ?`, [
+        device.id,
+        input.platform,
+        input.transactionId
+      ]);
+    } else if (previous) {
+      return "used_elsewhere";
+    }
+  }
+  const now = nowMs();
+  await pauzoBatch([
+    {
+      sql: `INSERT INTO pauzo_purchases (id, device_id, platform, product_id, transaction_id, verified, created_at)
+            VALUES (?, ?, ?, ?, ?, 1, ?)
+            ON CONFLICT(platform, transaction_id) DO NOTHING`,
+      params: [crypto.randomUUID(), device.id, input.platform, input.productId, input.transactionId, now]
+    },
+    {
+      sql: `UPDATE pauzo_devices SET status = 'paid', unlock_source = 'purchase', unlocked_at = ? WHERE id = ?`,
+      params: [now, device.id]
+    }
+  ]);
+  return "paid";
 }
 
 // ---------------------------------------------------------------- admin

@@ -12,7 +12,7 @@ export class PauzoNotConfiguredError extends Error {
   }
 }
 
-const SCHEMA: Stmt[] = [
+const SCHEMA: (Stmt & {optional?: boolean})[] = [
   {
     sql: `CREATE TABLE IF NOT EXISTS pauzo_devices (
       id TEXT PRIMARY KEY NOT NULL,
@@ -29,6 +29,7 @@ const SCHEMA: Stmt[] = [
       pair_code TEXT NOT NULL DEFAULT ''
     )`
   },
+  {sql: `ALTER TABLE pauzo_devices ADD COLUMN fcm_token TEXT NOT NULL DEFAULT ''`, optional: true},
   {sql: `CREATE INDEX IF NOT EXISTS idx_pauzo_devices_token ON pauzo_devices(token_hash)`},
   {
     sql: `CREATE TABLE IF NOT EXISTS pauzo_pairs (
@@ -67,7 +68,15 @@ const schemaGlobal = globalThis as unknown as {__pauzoSchemaReady?: Set<string>}
 async function ensureSchema(store: Store) {
   const ready = (schemaGlobal.__pauzoSchemaReady ??= new Set());
   if (ready.has(store.kind)) return;
-  await store.batch(SCHEMA);
+  for (const stmt of SCHEMA) {
+    try {
+      await store.batch([{sql: stmt.sql}]);
+    } catch (error) {
+      // Columns added after the first release: ALTER fails once they exist.
+      const duplicate = /duplicate column/i.test(error instanceof Error ? error.message : String(error));
+      if (!(stmt.optional && duplicate)) throw error;
+    }
+  }
   ready.add(store.kind);
 }
 

@@ -9,7 +9,8 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     await touchDevice(device.id, {
       appVersion: cleanString(url.searchParams.get("appVersion"), 30),
-      locale: cleanString(url.searchParams.get("locale"), 10)
+      locale: cleanString(url.searchParams.get("locale"), 10),
+      fcmToken: cleanString(url.searchParams.get("fcmToken"), 4096)
     });
     return NextResponse.json({ok: true, entitlement: await getEntitlement(device)});
   } catch (error) {

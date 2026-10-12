@@ -196,9 +196,18 @@ function thinkingConfig(model: string): Record<string, unknown> {
   return (flashVersion(model) ?? 3) < 3 ? {thinkingBudget: 0} : {thinkingLevel: "low"};
 }
 
-export type GeminiContent = {role: "user" | "model"; parts: {text: string}[]};
+export type GeminiPart = {text: string} | {inline_data: {mime_type: string; data: string}};
+export type GeminiContent = {role: "user" | "model"; parts: GeminiPart[]};
 
-async function generate(key: string, model: string, prompt: {system: string; contents: GeminiContent[]}) {
+/** `json` asks for a JSON object back (parsing a sentence or a receipt). */
+export type GeminiOptions = {json?: boolean; temperature?: number; maxOutputTokens?: number};
+
+async function generate(
+  key: string,
+  model: string,
+  prompt: {system: string; contents: GeminiContent[]},
+  options: GeminiOptions
+) {
   return fetch(`${GEMINI_API}/models/${model}:generateContent`, {
     method: "POST",
     headers: {"Content-Type": "application/json", "x-goog-api-key": key},
@@ -207,25 +216,31 @@ async function generate(key: string, model: string, prompt: {system: string; con
       contents: prompt.contents,
       // Headroom: thinking tokens count against this limit too, and a
       // cut-off answer was worse than a slightly slower one.
-      generationConfig: {temperature: 0.4, maxOutputTokens: 4096, thinkingConfig: thinkingConfig(model)}
+      generationConfig: {
+        temperature: options.temperature ?? 0.4,
+        maxOutputTokens: options.maxOutputTokens ?? 4096,
+        thinkingConfig: thinkingConfig(model),
+        ...(options.json ? {responseMimeType: "application/json"} : {})
+      }
     }),
     cache: "no-store"
   });
 }
 
 export async function askGemini(
-  prompt: {system: string; user: string} | {system: string; contents: GeminiContent[]}
+  prompt: {system: string; user: string} | {system: string; contents: GeminiContent[]},
+  options: GeminiOptions = {}
 ): Promise<string> {
   const request =
     "contents" in prompt ? prompt : {system: prompt.system, contents: [{role: "user" as const, parts: [{text: prompt.user}]}]};
   const key = process.env.PAUZO_GEMINI_API_KEY?.trim();
   if (!key) throw new Error("gemini_not_configured");
   let model = await resolveModel(key);
-  let res = await generate(key, model, request);
+  let res = await generate(key, model, request, options);
   // The cached model was retired since the isolate started: look again once.
   if (res.status === 404 && !process.env.PAUZO_GEMINI_MODEL?.trim()) {
     model = await resolveModel(key, true);
-    res = await generate(key, model, request);
+    res = await generate(key, model, request, options);
   }
   const json = (await res.json()) as {
     candidates?: {content?: {parts?: {text?: string; thought?: boolean}[]}; finishReason?: string}[];

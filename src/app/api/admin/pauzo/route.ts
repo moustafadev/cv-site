@@ -4,7 +4,7 @@ import {isPauzoConfigured} from "@/lib/pauzo-db";
 import {pauzoError} from "@/lib/pauzo-request";
 import {requireAdmin} from "@/lib/require-admin";
 
-const FILTERS: AdminDeviceFilter[] = ["all", "trial", "expired", "unlocked", "paid"];
+const FILTERS: AdminDeviceFilter[] = ["all", "free", "unlocked", "paid"];
 const CHART_DAYS = 14;
 
 /** Everything the /admin/pauzo page shows, in one D1 round of queries. */

@@ -1,10 +1,10 @@
 import {NextResponse} from "next/server";
-import {consumeIpQuota, getEntitlement, registerDevice, TRIAL_DAYS} from "@/lib/pauzo";
+import {consumeIpQuota, getEntitlement, registerDevice} from "@/lib/pauzo";
 import {cleanString, clientIp, pauzoError, readJson} from "@/lib/pauzo-request";
 
 const REGISTERS_PER_IP_PER_DAY = 20;
 
-/** First launch: the app gets its device token and trial end date. */
+/** First launch: the app gets its device token and plan. */
 export async function POST(request: Request) {
   try {
     const body = await readJson<{platform?: unknown; appVersion?: unknown; locale?: unknown}>(request);
@@ -20,7 +20,6 @@ export async function POST(request: Request) {
       ok: true,
       deviceId: device.id,
       token,
-      trialDays: TRIAL_DAYS,
       entitlement: await getEntitlement(device)
     });
   } catch (error) {

@@ -6,16 +6,18 @@ first use; `npm run dev` without D1 credentials uses `data/blog-dev.sqlite`.
 
 ## Rules
 
-- Every install gets a **7-day trial** from the moment it registers.
-- A device creates **one pair code** (`PZ-XXXXX`). The first other device that
-  joins it closes the pair and **both are unlocked for good**. A third device
+- Every install is **free** and keeps every budgeting feature. Free devices get
+  **2 AI questions a day** (`PAUZO_AI_DAILY_LIMIT`).
+- **Premium** opens the AI chat and **30 AI messages a day**
+  (`PAUZO_AI_PREMIUM_DAILY_LIMIT`). It comes from a verified one-time purchase,
+  or from an invite code: the device that creates a code (`PZ-XXXXX`) and the
+  first other device that joins it both get premium for good. A third device
   gets `pair_full`.
 - A completed code can **restore** up to 2 more installs (phone change,
-  reinstall) via `/pair/restore`.
-- `PAUZO_REVIEWER_CODE` (env) unlocks a device on its own — give it to store
-  reviewers, never publish it.
-- Purchases (`pauzo_purchases`) are reserved for the one-time unlock; no
-  verification route ships yet.
+  reinstall) via `/pair/restore`; a purchase is restored by the store.
+- `PAUZO_REVIEWER_CODE` (env) gives a device premium on its own — give it to
+  store reviewers, never publish it.
+- Nothing ever locks the app; there is no trial.
 
 ## Auth
 
@@ -33,7 +35,8 @@ are stored hashed.
 | POST | `/pair/join` | `{code}` | `{entitlement}`; 409 with `error` ∈ `invalid_code`, `own_code`, `pair_full`, `already_paired` |
 | POST | `/pair/restore` | `{code}` | `{entitlement}`; 409 with `error` ∈ `invalid_code`, `pair_incomplete`, `restore_limit` |
 | POST | `/purchase/verify` | `{platform: android, productId, purchaseToken}` or `{platform: ios, productId, transactionId}` | `{entitlement}` (state `paid`); 409 `purchase_invalid`, `purchase_pending`, `unknown_product`, `used_elsewhere`; 503 `purchase_not_configured` |
-| POST | `/insights` | see below | `{text}`; 402 `locked`, 429 `daily_limit`, 503 `ai_not_configured` |
+| POST | `/insights` | see below | `{text, entitlement}`; 429 `daily_limit`, 503 `ai_not_configured` |
+| POST | `/chat` | `{messages: [{role: user|model, text}], data}` (premium) | `{text, entitlement}`; 402 `premium_required`, 429 `daily_limit` |
 | GET | `/api/admin/pauzo/stats` | admin cookie | `{stats}` |
 | GET | `/api/admin/pauzo?status=&q=` | admin cookie | `{stats, daily, pairs, devices}` for `/admin/pauzo` |
 | POST | `/api/admin/pauzo/device` | `{id, action}` admin cookie | `action` ∈ `unlock`, `extend_trial` (+7 days), `reset_trial` (undo an admin unlock) |
@@ -45,7 +48,7 @@ running / over, codes created vs completed, AI questions today, a 14-day
 installs/unlocks chart, the newest devices (filter by state, search by device
 id or `PZ-` code) with support actions, and the newest invite codes.
 
-`entitlement`: `{state: trial|unlocked|paid|expired, trialEndsAt, trialDaysLeft, pairCode, partnerJoined, aiDailyLimit}`.
+`entitlement`: `{state: free|unlocked|paid, premium, pairCode, partnerJoined, aiDailyLimit, aiRemainingToday}`.
 
 ## Push, invite links, purchases
 

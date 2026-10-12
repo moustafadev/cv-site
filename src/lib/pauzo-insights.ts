@@ -1,7 +1,8 @@
 /**
- * Fixed questions the app can ask about the user's month. The app sends
- * aggregates only (no comments, no free text); the model never sees a
- * transaction list, and nothing is stored here.
+ * The money coach: fixed questions (everyone) and a free chat (premium).
+ * The app sends the month in numbers — plan, totals, goal, wish, limits,
+ * the last months' totals and, for the chat, the operations themselves
+ * (date, type, category, amount; never comments). Nothing is stored here.
  */
 
 export const QUESTIONS = [
@@ -26,7 +27,15 @@ export type InsightInput = {
   goal?: {title: string; saved: number; target: number; monthly: number; monthsLeft: number | null} | null;
   desire?: {title: string; amount: number} | null;
   limits?: Record<string, {limit: number; spent: number}> | null;
+  /** Totals of the last few months, oldest first. */
+  history?: {month: string; income: number; expenses: number}[];
+  /** This month's and recent operations, newest first (chat only). */
+  operations?: {date: string; type: "income" | "expense"; category: string; amount: number; recurring: boolean}[];
 };
+
+export type CoachData = Omit<InsightInput, "question">;
+
+export type ChatMessage = {role: "user" | "model"; text: string};
 
 const LANGUAGE_NAMES: Record<string, string> = {
   "ar-EG": "Egyptian Arabic (colloquial, as spoken in Cairo)",
@@ -54,15 +63,19 @@ function money(value: number, currency: string): string {
   return `${Math.round(value).toLocaleString("en-US")} ${currency}`;
 }
 
-export function buildPrompt(input: InsightInput): {system: string; user: string} {
-  const language = LANGUAGE_NAMES[input.locale] ?? LANGUAGE_NAMES[input.locale.split("-")[0]!] ?? "English";
+function languageOf(locale: string): string {
+  return LANGUAGE_NAMES[locale] ?? LANGUAGE_NAMES[locale.split("-")[0]!] ?? "English";
+}
+
+/** The month as plain lines the model reads; shared by questions and chat. */
+function dataLines(input: CoachData, withOperations: boolean): string[] {
   const c = input.currency;
   const free = input.plan.income - input.plan.mandatory - input.plan.daily - input.plan.reserve;
   const lines = [
-    `Month: ${input.month}`,
+    `Today's month: ${input.month}`,
     `Plan: income ${money(input.plan.income, c)}, fixed expenses ${money(input.plan.mandatory, c)}, everyday spending ${money(input.plan.daily, c)}, set aside ${money(input.plan.reserve, c)}, free for goals and wishes ${money(free, c)}`,
-    `Actual so far: income ${money(input.actual.income, c)}, expenses ${money(input.actual.expenses, c)}`,
-    `Expenses by category: ${
+    `Actual so far this month: income ${money(input.actual.income, c)}, expenses ${money(input.actual.expenses, c)}`,
+    `Expenses by category this month: ${
       Object.entries(input.actual.byCategory)
         .sort((a, b) => b[1] - a[1])
         .map(([k, v]) => `${k} ${money(v, c)}`)
@@ -71,6 +84,11 @@ export function buildPrompt(input: InsightInput): {system: string; user: string}
   ];
   if (input.previous) {
     lines.push(`Previous month: income ${money(input.previous.income, c)}, expenses ${money(input.previous.expenses, c)}`);
+  }
+  if (input.history?.length) {
+    lines.push(
+      `Recent months: ${input.history.map((h) => `${h.month} income ${money(h.income, c)} / expenses ${money(h.expenses, c)}`).join("; ")}`
+    );
   }
   if (input.goal) {
     const g = input.goal;
@@ -83,20 +101,50 @@ export function buildPrompt(input: InsightInput): {system: string; user: string}
   if (input.desire) lines.push(`Wish being considered: "${input.desire.title}" for ${money(input.desire.amount, c)}`);
   if (input.limits && Object.keys(input.limits).length) {
     lines.push(
-      `Category limits: ${Object.entries(input.limits)
+      `Category limits this month: ${Object.entries(input.limits)
         .map(([k, v]) => `${k} ${money(v.spent, c)} of ${money(v.limit, c)}`)
         .join(", ")}`
     );
   }
+  if (withOperations && input.operations?.length) {
+    lines.push(
+      "Operations (newest first; date, type, category, amount):",
+      ...input.operations.map(
+        (o) => `${o.date} ${o.type} ${o.category} ${money(o.amount, c)}${o.recurring ? " (monthly)" : ""}`
+      )
+    );
+  }
+  return lines;
+}
 
-  const system = [
+function rules(input: CoachData, maxWords: number): string {
+  return [
     "You are the money coach inside Pauzo, a personal budgeting app.",
-    `Write in ${language}. Keep it under 120 words, friendly and direct, plain text with short paragraphs or a short list; no markdown headings, no emojis.`,
-    "Use only the numbers given. Never invent transactions, never give investment, loan or tax advice, and never ask the user for more data.",
-    `Amounts are in ${c}; write them with digits.`
+    `Write in ${languageOf(input.locale)}. Keep it under ${maxWords} words, friendly and direct, plain text with short paragraphs or a short list; no markdown headings, no emojis.`,
+    "Use only the numbers given. Never invent transactions, never give investment, loan or tax advice.",
+    `Amounts are in ${input.currency}; write them with digits.`
   ].join(" ");
+}
 
-  return {system, user: `${QUESTION_TASKS[input.question]}\n\nData:\n${lines.join("\n")}`};
+export function buildPrompt(input: InsightInput): {system: string; user: string} {
+  return {
+    system: rules(input, 120),
+    user: `${QUESTION_TASKS[input.question]}\n\nData:\n${dataLines(input, false).join("\n")}`
+  };
+}
+
+/**
+ * Premium chat: the data goes in the system instruction so every turn sees
+ * it; the conversation is the app's recent messages.
+ */
+export function buildChat(input: CoachData, messages: ChatMessage[]): {system: string; contents: GeminiContent[]} {
+  const system = [
+    rules(input, 160),
+    "Answer only questions about the user's money, budget, goals and spending in this app; for anything else, say briefly that you can only help with their money.",
+    "If the data can't answer a question, say what is missing instead of guessing.",
+    `The user's data:\n${dataLines(input, true).join("\n")}`
+  ].join("\n\n");
+  return {system, contents: messages.map((m) => ({role: m.role, parts: [{text: m.text}]}))};
 }
 
 export class GeminiError extends Error {
@@ -148,13 +196,15 @@ function thinkingConfig(model: string): Record<string, unknown> {
   return (flashVersion(model) ?? 3) < 3 ? {thinkingBudget: 0} : {thinkingLevel: "low"};
 }
 
-async function generate(key: string, model: string, prompt: {system: string; user: string}) {
+export type GeminiContent = {role: "user" | "model"; parts: {text: string}[]};
+
+async function generate(key: string, model: string, prompt: {system: string; contents: GeminiContent[]}) {
   return fetch(`${GEMINI_API}/models/${model}:generateContent`, {
     method: "POST",
     headers: {"Content-Type": "application/json", "x-goog-api-key": key},
     body: JSON.stringify({
       systemInstruction: {parts: [{text: prompt.system}]},
-      contents: [{role: "user", parts: [{text: prompt.user}]}],
+      contents: prompt.contents,
       // Headroom: thinking tokens count against this limit too, and a
       // cut-off answer was worse than a slightly slower one.
       generationConfig: {temperature: 0.4, maxOutputTokens: 4096, thinkingConfig: thinkingConfig(model)}
@@ -163,15 +213,19 @@ async function generate(key: string, model: string, prompt: {system: string; use
   });
 }
 
-export async function askGemini(prompt: {system: string; user: string}): Promise<string> {
+export async function askGemini(
+  prompt: {system: string; user: string} | {system: string; contents: GeminiContent[]}
+): Promise<string> {
+  const request =
+    "contents" in prompt ? prompt : {system: prompt.system, contents: [{role: "user" as const, parts: [{text: prompt.user}]}]};
   const key = process.env.PAUZO_GEMINI_API_KEY?.trim();
   if (!key) throw new Error("gemini_not_configured");
   let model = await resolveModel(key);
-  let res = await generate(key, model, prompt);
+  let res = await generate(key, model, request);
   // The cached model was retired since the isolate started: look again once.
   if (res.status === 404 && !process.env.PAUZO_GEMINI_MODEL?.trim()) {
     model = await resolveModel(key, true);
-    res = await generate(key, model, prompt);
+    res = await generate(key, model, request);
   }
   const json = (await res.json()) as {
     candidates?: {content?: {parts?: {text?: string; thought?: boolean}[]}; finishReason?: string}[];

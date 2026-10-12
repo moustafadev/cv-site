@@ -2,17 +2,16 @@
 
 import {useCallback, useEffect, useState} from "react";
 
-type State = "trial" | "unlocked" | "paid" | "expired";
+type State = "free" | "unlocked" | "paid";
 type Filter = "all" | State;
-type Action = "unlock" | "extend_trial" | "reset_trial";
+type Action = "unlock" | "revoke";
 
 type Stats = {
   devices: number;
   activeLast7Days: number;
   purchases: number;
   purchasesLast7Days: number;
-  trial: number;
-  expired: number;
+  free: number;
   unlocked: number;
   paid: number;
   pairsCreated: number;
@@ -27,7 +26,6 @@ type Device = {
   locale: string;
   createdAt: number;
   lastSeenAt: number;
-  trialEndsAt: number;
   state: State;
   unlockSource: string;
   unlockedAt: number;
@@ -76,26 +74,21 @@ type Payload = {
 
 const FILTERS: {value: Filter; label: string}[] = [
   {value: "all", label: "All"},
-  {value: "trial", label: "On trial"},
-  {value: "expired", label: "Trial over"},
-  {value: "unlocked", label: "Unlocked"},
-  {value: "paid", label: "Paid"}
+  {value: "free", label: "Free"},
+  {value: "unlocked", label: "Premium · friend"},
+  {value: "paid", label: "Premium · paid"}
 ];
 
 const STATE_STYLE: Record<State, string> = {
-  trial: "border-amber-700/70 bg-amber-950/50 text-amber-200",
-  expired: "border-rose-800/70 bg-rose-950/50 text-rose-200",
+  free: "border-slate-700 bg-slate-900 text-slate-300",
   unlocked: "border-emerald-800/70 bg-emerald-950/50 text-emerald-200",
   paid: "border-sky-800/70 bg-sky-950/50 text-sky-200"
 };
 
 const ACTION_LABEL: Record<Action, string> = {
-  unlock: "Unlock",
-  extend_trial: "+7 days",
-  reset_trial: "Undo unlock"
+  unlock: "Give premium",
+  revoke: "Take premium back"
 };
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 function fmtDate(t: number): string {
   return t ? new Date(t).toLocaleString(undefined, {dateStyle: "medium", timeStyle: "short"}) : "—";
@@ -162,10 +155,8 @@ export default function AdminPauzoPage() {
   async function act(device: Device, action: Action) {
     const confirmText =
       action === "unlock"
-        ? `Unlock device ${shortId(device.id)} for good?`
-        : action === "reset_trial"
-          ? `Take back the manual unlock on ${shortId(device.id)}?`
-          : null;
+        ? `Give device ${shortId(device.id)} premium for good?`
+        : `Take back the premium you gave ${shortId(device.id)}?`;
     if (confirmText && !window.confirm(confirmText)) return;
     setBusyId(device.id);
     setNotice(null);
@@ -245,13 +236,12 @@ export default function AdminPauzoPage() {
               tone="sky"
             />
             <StatCard
-              label="Unlocked by a friend"
+              label="Premium by a friend"
               value={stats.unlocked}
               hint={`${pct(stats.unlocked, stats.devices)} of installs`}
               tone="emerald"
             />
-            <StatCard label="On trial" value={stats.trial} hint="still has days left" tone="amber" />
-            <StatCard label="Trial over" value={stats.expired} hint="locked, never unlocked" tone="rose" />
+            <StatCard label="Free" value={stats.free} hint="2 AI questions a day" />
             <StatCard label="Codes created" value={stats.pairsCreated} hint="«Send to a friend» taps" />
             <StatCard
               label="Codes completed"
@@ -341,11 +331,7 @@ export default function AdminPauzoPage() {
                         <td className="py-2 pr-3">
                           <span className={`rounded-full border px-2 py-0.5 text-xs ${STATE_STYLE[d.state]}`}>{d.state}</span>
                           <div className="mt-1 text-xs text-slate-500">
-                            {d.state === "trial"
-                              ? `${Math.max(1, Math.ceil((d.trialEndsAt - Date.now()) / DAY_MS))} d left`
-                              : d.unlockSource
-                                ? `via ${d.unlockSource}`
-                                : ""}
+                            {d.unlockSource ? `via ${d.unlockSource}` : ""}
                           </div>
                         </td>
                         <td className="py-2 pr-3 text-slate-300">{fmtDate(d.createdAt)}</td>
@@ -353,19 +339,14 @@ export default function AdminPauzoPage() {
                         <td className="py-2 pr-3 font-mono text-slate-300">{d.pairCode || "—"}</td>
                         <td className="py-2">
                           <div className="flex flex-wrap gap-1.5">
-                            {d.state === "trial" || d.state === "expired" ? (
-                              <>
-                                <ActionButton disabled={busyId === d.id} onClick={() => void act(d, "unlock")}>
-                                  {ACTION_LABEL.unlock}
-                                </ActionButton>
-                                <ActionButton disabled={busyId === d.id} onClick={() => void act(d, "extend_trial")}>
-                                  {ACTION_LABEL.extend_trial}
-                                </ActionButton>
-                              </>
+                            {d.state === "free" ? (
+                              <ActionButton disabled={busyId === d.id} onClick={() => void act(d, "unlock")}>
+                                {ACTION_LABEL.unlock}
+                              </ActionButton>
                             ) : null}
                             {d.unlockSource === "admin" && d.state === "unlocked" ? (
-                              <ActionButton disabled={busyId === d.id} onClick={() => void act(d, "reset_trial")}>
-                                {ACTION_LABEL.reset_trial}
+                              <ActionButton disabled={busyId === d.id} onClick={() => void act(d, "revoke")}>
+                                {ACTION_LABEL.revoke}
                               </ActionButton>
                             ) : null}
                           </div>
@@ -456,7 +437,7 @@ function Shell({children, actions}: {children: React.ReactNode; actions?: React.
               ← Admin
             </a>
             <h1 className="mt-1 text-2xl font-semibold text-brand-100">Pauzo</h1>
-            <p className="mt-1 text-sm text-slate-400">Installs, trials, invite codes and AI usage for the Pauzo app.</p>
+            <p className="mt-1 text-sm text-slate-400">Installs, premium (paid or by a friend), invite codes and AI usage.</p>
           </div>
           {actions}
         </div>

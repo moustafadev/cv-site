@@ -3,7 +3,7 @@ import {adminUpdateDevice, type AdminDeviceAction} from "@/lib/pauzo";
 import {cleanString, pauzoError, readJson} from "@/lib/pauzo-request";
 import {requireAdmin} from "@/lib/require-admin";
 
-const ACTIONS: AdminDeviceAction[] = ["unlock", "extend_trial", "reset_trial"];
+const ACTIONS: AdminDeviceAction[] = ["unlock", "revoke"];
 
 export async function POST(request: Request) {
   const denied = await requireAdmin();

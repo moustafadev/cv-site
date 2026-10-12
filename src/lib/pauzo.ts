@@ -3,19 +3,20 @@ import {sendPartnerJoinedPush} from "@/lib/pauzo-push";
 import type {Row} from "@/lib/blog-db";
 
 /**
- * Pauzo unlock rules: every install gets a 7-day trial; a device that
- * creates a pair code and a device that joins it are both unlocked for good;
- * a verified one-time purchase unlocks a device on its own.
+ * Pauzo plans: every install is free and keeps every budgeting feature; the
+ * only limit is the AI (two fixed questions a day). Premium — a verified
+ * one-time purchase, or both phones of a completed invite code — opens the
+ * AI chat and a much larger daily allowance. Nothing ever locks the app.
  */
 
-export const TRIAL_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Extra installs the same code can unlock after the pair is complete (phone changes, reinstalls). */
 const MAX_RESTORES = 2;
-const DEFAULT_AI_DAILY_LIMIT = 2;
+const DEFAULT_FREE_AI_DAILY_LIMIT = 2;
+const DEFAULT_PREMIUM_AI_DAILY_LIMIT = 30;
 
-export type DeviceStatus = "trial" | "unlocked" | "paid";
-export type EntitlementState = "trial" | "unlocked" | "paid" | "expired";
+export type DeviceStatus = "free" | "trial" | "unlocked" | "paid";
+export type EntitlementState = "free" | "unlocked" | "paid";
 
 export type Device = {
   id: string;
@@ -23,22 +24,21 @@ export type Device = {
   platform: string;
   locale: string;
   createdAt: number;
-  trialEndsAt: number;
   status: DeviceStatus;
   unlockSource: string;
   pairCode: string;
 };
 
 export type Entitlement = {
+  /** free, unlocked (by an invite code / admin) or paid. */
   state: EntitlementState;
-  trialEndsAt: number;
-  /** Whole days left in the trial, 0 once it has run out. */
-  trialDaysLeft: number;
+  premium: boolean;
   pairCode: string | null;
   /** True once someone joined this device's code (or this device joined someone's). */
   partnerJoined: boolean;
+  /** AI messages a day — fixed questions and chat share it. */
   aiDailyLimit: number;
-  /** Questions left today (UTC day), so the app can show «1 of 2 left». */
+  /** Left today (UTC day), so the app can show «1 of 2 left». */
   aiRemainingToday: number;
 };
 
@@ -53,7 +53,6 @@ function rowToDevice(row: Row): Device {
     platform: String(row.platform ?? ""),
     locale: String(row.locale ?? ""),
     createdAt: Number(row.created_at),
-    trialEndsAt: Number(row.trial_ends_at),
     status: String(row.status) as DeviceStatus,
     unlockSource: String(row.unlock_source ?? ""),
     pairCode: String(row.pair_code ?? "")
@@ -95,7 +94,8 @@ export async function registerDevice(input: {platform: string; appVersion: strin
   await pauzoQuery(
     `INSERT INTO pauzo_devices (id, token_hash, platform, app_version, locale, created_at, last_seen_at, trial_ends_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, await sha256Hex(token), input.platform, input.appVersion, input.locale, now, now, now + TRIAL_DAYS * DAY_MS]
+    // trial_ends_at is a leftover of the old trial model; unused.
+    [id, await sha256Hex(token), input.platform, input.appVersion, input.locale, now, now, now]
   );
   const device = (await getDevice(id))!;
   return {device, token};
@@ -137,9 +137,15 @@ export async function touchDevice(
   await pauzoQuery(`UPDATE pauzo_devices SET ${sets.join(", ")} WHERE id = ?`, params);
 }
 
-export function aiDailyLimit(): number {
-  const raw = Number(process.env.PAUZO_AI_DAILY_LIMIT);
-  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_AI_DAILY_LIMIT;
+function envLimit(name: string, fallback: number): number {
+  const raw = Number(process.env[name]);
+  return Number.isFinite(raw) && raw > 0 ? raw : fallback;
+}
+
+export function aiDailyLimit(premium: boolean): number {
+  return premium
+    ? envLimit("PAUZO_AI_PREMIUM_DAILY_LIMIT", DEFAULT_PREMIUM_AI_DAILY_LIMIT)
+    : envLimit("PAUZO_AI_DAILY_LIMIT", DEFAULT_FREE_AI_DAILY_LIMIT);
 }
 
 export async function getEntitlement(device: Device): Promise<Entitlement> {
@@ -148,19 +154,18 @@ export async function getEntitlement(device: Device): Promise<Entitlement> {
     const rows = await pauzoQuery(`SELECT partner_id FROM pauzo_pairs WHERE code = ?`, [device.pairCode]);
     partnerJoined = String(rows[0]?.partner_id ?? "") !== "";
   }
-  // A completed pair unlocks even if the status update after the join was lost.
-  const unlocked = device.status === "unlocked" || (partnerJoined && device.unlockSource !== "reviewer");
-  const now = nowMs();
+  // A completed pair counts even if the status update after the join was lost.
   const state: EntitlementState =
-    device.status === "paid" ? "paid" : unlocked ? "unlocked" : now < device.trialEndsAt ? "trial" : "expired";
+    device.status === "paid" ? "paid" : device.status === "unlocked" || partnerJoined ? "unlocked" : "free";
+  const premium = state !== "free";
+  const limit = aiDailyLimit(premium);
   return {
     state,
-    trialEndsAt: device.trialEndsAt,
-    trialDaysLeft: state === "trial" ? Math.max(1, Math.ceil((device.trialEndsAt - now) / DAY_MS)) : 0,
+    premium,
     pairCode: device.pairCode || null,
     partnerJoined,
-    aiDailyLimit: aiDailyLimit(),
-    aiRemainingToday: Math.max(0, aiDailyLimit() - (await aiUsedToday(device.id)))
+    aiDailyLimit: limit,
+    aiRemainingToday: Math.max(0, limit - (await aiUsedToday(device.id)))
   };
 }
 
@@ -275,10 +280,10 @@ async function aiUsedToday(deviceId: string): Promise<number> {
 }
 
 /** Returns false when the device has used up today's AI questions. */
-export async function consumeAiQuota(device: Device): Promise<boolean> {
+export async function consumeAiQuota(device: Device, premium: boolean): Promise<boolean> {
   const day = new Date().toISOString().slice(0, 10);
   const count = await bumpDailyCounter(`ai:${device.id}`, day);
-  return count <= aiDailyLimit();
+  return count <= aiDailyLimit(premium);
 }
 
 export async function refundAiQuota(device: Device): Promise<void> {
@@ -297,9 +302,7 @@ export type PauzoStats = {
   /** Purchases (one per buyer, however many reinstalls). */
   purchases: number;
   purchasesLast7Days: number;
-  trial: number;
-  /** Trial ran out and the device never unlocked. */
-  expired: number;
+  free: number;
   unlocked: number;
   paid: number;
   pairsCreated: number;
@@ -314,12 +317,11 @@ export async function getPauzoStats(): Promise<PauzoStats> {
     {
       sql: `SELECT COUNT(*) AS devices,
               SUM(CASE WHEN last_seen_at >= ? THEN 1 ELSE 0 END) AS active,
-              SUM(CASE WHEN status = 'trial' AND trial_ends_at > ? THEN 1 ELSE 0 END) AS trial,
-              SUM(CASE WHEN status = 'trial' AND trial_ends_at <= ? THEN 1 ELSE 0 END) AS expired,
+              SUM(CASE WHEN status NOT IN ('unlocked', 'paid') THEN 1 ELSE 0 END) AS free,
               SUM(CASE WHEN status = 'unlocked' THEN 1 ELSE 0 END) AS unlocked,
               SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) AS paid
             FROM pauzo_devices`,
-      params: [weekAgo, nowMs(), nowMs()]
+      params: [weekAgo]
     },
     {
       sql: `SELECT COUNT(*) AS created, SUM(CASE WHEN partner_id <> '' THEN 1 ELSE 0 END) AS completed FROM pauzo_pairs`
@@ -337,8 +339,7 @@ export async function getPauzoStats(): Promise<PauzoStats> {
     activeLast7Days: Number(d.active ?? 0),
     purchases: Number(purchases?.[0]?.total ?? 0),
     purchasesLast7Days: Number(purchases?.[0]?.recent ?? 0),
-    trial: Number(d.trial ?? 0),
-    expired: Number(d.expired ?? 0),
+    free: Number(d.free ?? 0),
     unlocked: Number(d.unlocked ?? 0),
     paid: Number(d.paid ?? 0),
     pairsCreated: Number(p.created ?? 0),
@@ -372,9 +373,8 @@ export async function recordPurchase(
           params: [device.id, now, input.platform, input.transactionId]
         },
         {
-          sql: `UPDATE pauzo_devices SET status = 'trial', unlock_source = 'moved', trial_ends_at = MIN(trial_ends_at, ?)
-                WHERE id = ?`,
-          params: [now, previous.id]
+          sql: `UPDATE pauzo_devices SET status = 'free', unlock_source = 'moved' WHERE id = ?`,
+          params: [previous.id]
         }
       ]);
     } else if (previous) {
@@ -399,7 +399,7 @@ export async function recordPurchase(
 
 // ---------------------------------------------------------------- admin
 
-export type AdminDeviceFilter = "all" | "trial" | "expired" | "unlocked" | "paid";
+export type AdminDeviceFilter = "all" | "free" | "unlocked" | "paid";
 
 export type AdminDevice = {
   id: string;
@@ -408,7 +408,6 @@ export type AdminDevice = {
   locale: string;
   createdAt: number;
   lastSeenAt: number;
-  trialEndsAt: number;
   state: EntitlementState;
   unlockSource: string;
   unlockedAt: number;
@@ -470,9 +469,7 @@ export async function listPurchases(): Promise<AdminPurchase[]> {
 
 function rowToAdminDevice(row: Row, now: number): AdminDevice {
   const status = String(row.status);
-  const trialEndsAt = Number(row.trial_ends_at);
-  const state: EntitlementState =
-    status === "paid" ? "paid" : status === "unlocked" ? "unlocked" : now < trialEndsAt ? "trial" : "expired";
+  const state: EntitlementState = status === "paid" ? "paid" : status === "unlocked" ? "unlocked" : "free";
   return {
     id: String(row.id),
     platform: String(row.platform ?? ""),
@@ -480,7 +477,6 @@ function rowToAdminDevice(row: Row, now: number): AdminDevice {
     locale: String(row.locale ?? ""),
     createdAt: Number(row.created_at),
     lastSeenAt: Number(row.last_seen_at),
-    trialEndsAt,
     state,
     unlockSource: String(row.unlock_source ?? ""),
     unlockedAt: Number(row.unlocked_at ?? 0),
@@ -494,13 +490,8 @@ export async function listDevices(filter: AdminDeviceFilter, query: string): Pro
   const where: string[] = [];
   const params: (string | number)[] = [];
   switch (filter) {
-    case "trial":
-      where.push("status = 'trial' AND trial_ends_at > ?");
-      params.push(now);
-      break;
-    case "expired":
-      where.push("status = 'trial' AND trial_ends_at <= ?");
-      params.push(now);
+    case "free":
+      where.push("status NOT IN ('unlocked', 'paid')");
       break;
     case "unlocked":
     case "paid":
@@ -580,15 +571,10 @@ export async function dailyCounts(days: number): Promise<DailyCount[]> {
   }));
 }
 
-export type AdminDeviceAction = "unlock" | "extend_trial" | "reset_trial";
+export type AdminDeviceAction = "unlock" | "revoke";
 
-/**
- * Support actions. `unlock` marks the device as unlocked by the admin;
- * `extend_trial` adds TRIAL_DAYS from now (or from the current end, if later);
- * `reset_trial` takes a manual unlock back.
- */
+/** Support actions: `unlock` gives a device premium; `revoke` takes back a premium the admin gave. */
 export async function adminUpdateDevice(id: string, action: AdminDeviceAction): Promise<boolean> {
-  const now = nowMs();
   const before = await getDevice(id);
   if (!before) return false;
   switch (action) {
@@ -596,18 +582,12 @@ export async function adminUpdateDevice(id: string, action: AdminDeviceAction): 
       await pauzoQuery(
         `UPDATE pauzo_devices SET status = 'unlocked', unlock_source = 'admin', unlocked_at = ?
          WHERE id = ? AND status <> 'paid'`,
-        [now, id]
+        [nowMs(), id]
       );
       break;
-    case "extend_trial":
+    case "revoke":
       await pauzoQuery(
-        `UPDATE pauzo_devices SET trial_ends_at = MAX(trial_ends_at, ?) + ? WHERE id = ?`,
-        [now, TRIAL_DAYS * DAY_MS, id]
-      );
-      break;
-    case "reset_trial":
-      await pauzoQuery(
-        `UPDATE pauzo_devices SET status = 'trial', unlock_source = '', unlocked_at = 0
+        `UPDATE pauzo_devices SET status = 'free', unlock_source = '', unlocked_at = 0
          WHERE id = ? AND unlock_source = 'admin'`,
         [id]
       );

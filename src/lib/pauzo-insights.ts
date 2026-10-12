@@ -155,7 +155,9 @@ async function generate(key: string, model: string, prompt: {system: string; use
     body: JSON.stringify({
       systemInstruction: {parts: [{text: prompt.system}]},
       contents: [{role: "user", parts: [{text: prompt.user}]}],
-      generationConfig: {temperature: 0.4, maxOutputTokens: 1024, thinkingConfig: thinkingConfig(model)}
+      // Headroom: thinking tokens count against this limit too, and a
+      // cut-off answer was worse than a slightly slower one.
+      generationConfig: {temperature: 0.4, maxOutputTokens: 4096, thinkingConfig: thinkingConfig(model)}
     }),
     cache: "no-store"
   });

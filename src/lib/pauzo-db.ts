@@ -62,6 +62,41 @@ const SCHEMA: (Stmt & {optional?: boolean})[] = [
             trial_ends_at = MIN(trial_ends_at, unlocked_at)
           WHERE status = 'paid' AND id NOT IN (SELECT device_id FROM pauzo_purchases)`
   },
+  // Shared budget: members see each other's operations (premium).
+  {
+    sql: `CREATE TABLE IF NOT EXISTS pauzo_households (
+      code TEXT PRIMARY KEY NOT NULL,
+      created_by TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    )`
+  },
+  {
+    sql: `CREATE TABLE IF NOT EXISTS pauzo_household_members (
+      device_id TEXT PRIMARY KEY NOT NULL,
+      household_code TEXT NOT NULL,
+      name TEXT NOT NULL DEFAULT '',
+      joined_at INTEGER NOT NULL
+    )`
+  },
+  {sql: `CREATE INDEX IF NOT EXISTS idx_pauzo_members_household ON pauzo_household_members(household_code)`},
+  {
+    sql: `CREATE TABLE IF NOT EXISTS pauzo_shared_ops (
+      device_id TEXT NOT NULL,
+      op_id TEXT NOT NULL,
+      household_code TEXT NOT NULL,
+      type TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      category TEXT NOT NULL,
+      day TEXT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      recurring INTEGER NOT NULL DEFAULT 0,
+      recurring_enabled INTEGER NOT NULL DEFAULT 1,
+      deleted INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY (device_id, op_id)
+    )`
+  },
+  {sql: `CREATE INDEX IF NOT EXISTS idx_pauzo_shared_ops_sync ON pauzo_shared_ops(household_code, updated_at)`},
   {
     sql: `CREATE TABLE IF NOT EXISTS pauzo_counters (
       key TEXT NOT NULL,

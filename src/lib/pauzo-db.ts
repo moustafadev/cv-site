@@ -107,11 +107,38 @@ const SCHEMA: (Stmt & {optional?: boolean})[] = [
   }
 ];
 
-const schemaGlobal = globalThis as unknown as {__pauzoSchemaReady?: Set<string>};
+/**
+ * Bump when SCHEMA changes. A database already at this version skips the
+ * whole list: each statement is its own D1 request, and on a cold isolate a
+ * page that fires several queries at once used to run the list once per
+ * query — enough to pass the Workers limit of 50 subrequests per request.
+ */
+const SCHEMA_VERSION = 5;
 
-async function ensureSchema(store: Store) {
-  const ready = (schemaGlobal.__pauzoSchemaReady ??= new Set());
-  if (ready.has(store.kind)) return;
+const schemaGlobal = globalThis as unknown as {__pauzoSchema?: Map<string, Promise<void>>};
+
+/** One run per store and isolate, shared by every query that arrives meanwhile. */
+function ensureSchema(store: Store): Promise<void> {
+  const runs = (schemaGlobal.__pauzoSchema ??= new Map());
+  let run = runs.get(store.kind);
+  if (!run) {
+    run = migrate(store).catch((error) => {
+      runs.delete(store.kind); // let the next request try again
+      throw error;
+    });
+    runs.set(store.kind, run);
+  }
+  return run;
+}
+
+async function migrate(store: Store): Promise<void> {
+  // One request: make sure the version table exists and read it.
+  const [, rows] = await store.batch([
+    {sql: `CREATE TABLE IF NOT EXISTS pauzo_meta (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)`},
+    {sql: `SELECT value FROM pauzo_meta WHERE key = 'schema'`}
+  ]);
+  if (Number(rows?.[0]?.value ?? 0) >= SCHEMA_VERSION) return;
+
   for (const stmt of SCHEMA) {
     try {
       await store.batch([{sql: stmt.sql}]);
@@ -121,7 +148,13 @@ async function ensureSchema(store: Store) {
       if (!(stmt.optional && duplicate)) throw error;
     }
   }
-  ready.add(store.kind);
+  await store.batch([
+    {
+      sql: `INSERT INTO pauzo_meta (key, value) VALUES ('schema', ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      params: [String(SCHEMA_VERSION)]
+    }
+  ]);
 }
 
 /** Runs statements in order inside one transaction and returns the rows of each. */

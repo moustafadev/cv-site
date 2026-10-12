@@ -294,6 +294,9 @@ export async function consumeIpQuota(ip: string, action: string, limit: number):
 export type PauzoStats = {
   devices: number;
   activeLast7Days: number;
+  /** Purchases (one per buyer, however many reinstalls). */
+  purchases: number;
+  purchasesLast7Days: number;
   trial: number;
   /** Trial ran out and the device never unlocked. */
   expired: number;
@@ -307,7 +310,7 @@ export type PauzoStats = {
 export async function getPauzoStats(): Promise<PauzoStats> {
   const weekAgo = nowMs() - 7 * DAY_MS;
   const today = new Date().toISOString().slice(0, 10);
-  const [devices, pairs, ai] = await pauzoBatch([
+  const [devices, pairs, ai, purchases] = await pauzoBatch([
     {
       sql: `SELECT COUNT(*) AS devices,
               SUM(CASE WHEN last_seen_at >= ? THEN 1 ELSE 0 END) AS active,
@@ -321,13 +324,19 @@ export async function getPauzoStats(): Promise<PauzoStats> {
     {
       sql: `SELECT COUNT(*) AS created, SUM(CASE WHEN partner_id <> '' THEN 1 ELSE 0 END) AS completed FROM pauzo_pairs`
     },
-    {sql: `SELECT COALESCE(SUM(count), 0) AS total FROM pauzo_counters WHERE day = ? AND key LIKE 'ai:%'`, params: [today]}
+    {sql: `SELECT COALESCE(SUM(count), 0) AS total FROM pauzo_counters WHERE day = ? AND key LIKE 'ai:%'`, params: [today]},
+    {
+      sql: `SELECT COUNT(*) AS total, SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS recent FROM pauzo_purchases`,
+      params: [weekAgo]
+    }
   ]);
   const d = devices?.[0] ?? {};
   const p = pairs?.[0] ?? {};
   return {
     devices: Number(d.devices ?? 0),
     activeLast7Days: Number(d.active ?? 0),
+    purchases: Number(purchases?.[0]?.total ?? 0),
+    purchasesLast7Days: Number(purchases?.[0]?.recent ?? 0),
     trial: Number(d.trial ?? 0),
     expired: Number(d.expired ?? 0),
     unlocked: Number(d.unlocked ?? 0),
@@ -353,10 +362,20 @@ export async function recordPurchase(
   if (owner && owner !== device.id) {
     const previous = await getDevice(owner);
     if (previous && previous.platform === device.platform && previous.status === "paid") {
-      await pauzoQuery(`UPDATE pauzo_purchases SET device_id = ? WHERE platform = ? AND transaction_id = ?`, [
-        device.id,
-        input.platform,
-        input.transactionId
+      // One purchase, one paid install: the old install (uninstalled or on
+      // the phone that was replaced) loses it as this one gets it.
+      const now = nowMs();
+      await pauzoBatch([
+        {
+          sql: `UPDATE pauzo_purchases SET device_id = ?, restores = restores + 1, restored_at = ?
+                WHERE platform = ? AND transaction_id = ?`,
+          params: [device.id, now, input.platform, input.transactionId]
+        },
+        {
+          sql: `UPDATE pauzo_devices SET status = 'trial', unlock_source = 'moved', trial_ends_at = MIN(trial_ends_at, ?)
+                WHERE id = ?`,
+          params: [now, previous.id]
+        }
       ]);
     } else if (previous) {
       return "used_elsewhere";
@@ -409,9 +428,45 @@ export type AdminPair = {
   joinedAt: number;
 };
 
+const ADMIN_PAGE_SIZE = 50;
+
 export type DailyCount = {day: string; registered: number; unlocked: number};
 
-const ADMIN_PAGE_SIZE = 50;
+export type AdminPurchase = {
+  transactionId: string;
+  platform: string;
+  productId: string;
+  verified: boolean;
+  createdAt: number;
+  restores: number;
+  restoredAt: number;
+  deviceId: string;
+  deviceLocale: string;
+  deviceAppVersion: string;
+  deviceLastSeenAt: number;
+};
+
+export async function listPurchases(): Promise<AdminPurchase[]> {
+  const rows = await pauzoQuery(
+    `SELECT p.*, d.locale AS d_locale, d.app_version AS d_version, d.last_seen_at AS d_seen
+     FROM pauzo_purchases p LEFT JOIN pauzo_devices d ON d.id = p.device_id
+     ORDER BY p.created_at DESC LIMIT ${ADMIN_PAGE_SIZE}`
+  );
+  return rows.map((row) => ({
+    transactionId: String(row.transaction_id),
+    platform: String(row.platform),
+    productId: String(row.product_id),
+    verified: Number(row.verified) === 1,
+    createdAt: Number(row.created_at),
+    restores: Number(row.restores ?? 0),
+    restoredAt: Number(row.restored_at ?? 0),
+    deviceId: String(row.device_id),
+    deviceLocale: String(row.d_locale ?? ""),
+    deviceAppVersion: String(row.d_version ?? ""),
+    deviceLastSeenAt: Number(row.d_seen ?? 0)
+  }));
+}
+
 
 function rowToAdminDevice(row: Row, now: number): AdminDevice {
   const status = String(row.status);

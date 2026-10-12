@@ -1,5 +1,5 @@
 import {NextResponse} from "next/server";
-import {dailyCounts, getPauzoStats, listDevices, listPairs, type AdminDeviceFilter} from "@/lib/pauzo";
+import {dailyCounts, getPauzoStats, listDevices, listPairs, listPurchases, type AdminDeviceFilter} from "@/lib/pauzo";
 import {isPauzoConfigured} from "@/lib/pauzo-db";
 import {pauzoError} from "@/lib/pauzo-request";
 import {requireAdmin} from "@/lib/require-admin";
@@ -17,13 +17,14 @@ export async function GET(request: Request) {
     const rawFilter = url.searchParams.get("status") as AdminDeviceFilter | null;
     const filter = rawFilter && FILTERS.includes(rawFilter) ? rawFilter : "all";
     const query = (url.searchParams.get("q") ?? "").slice(0, 64);
-    const [stats, daily, pairs, devices] = await Promise.all([
+    const [stats, daily, pairs, devices, purchases] = await Promise.all([
       getPauzoStats(),
       dailyCounts(CHART_DAYS),
       listPairs(),
-      listDevices(filter, query)
+      listDevices(filter, query),
+      listPurchases()
     ]);
-    return NextResponse.json({ok: true, configured: true, stats, daily, pairs, devices});
+    return NextResponse.json({ok: true, configured: true, stats, daily, pairs, devices, purchases});
   } catch (error) {
     return pauzoError(error);
   }

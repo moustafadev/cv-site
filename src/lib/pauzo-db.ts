@@ -53,6 +53,15 @@ const SCHEMA: (Stmt & {optional?: boolean})[] = [
     )`
   },
   {sql: `CREATE UNIQUE INDEX IF NOT EXISTS idx_pauzo_purchases_tx ON pauzo_purchases(platform, transaction_id)`},
+  {sql: `ALTER TABLE pauzo_purchases ADD COLUMN restores INTEGER NOT NULL DEFAULT 0`, optional: true},
+  {sql: `ALTER TABLE pauzo_purchases ADD COLUMN restored_at INTEGER NOT NULL DEFAULT 0`, optional: true},
+  // Before restores demoted the old install, a reinstall left two devices
+  // marked paid for one purchase; only the purchase's current owner stays paid.
+  {
+    sql: `UPDATE pauzo_devices SET status = 'trial', unlock_source = 'moved',
+            trial_ends_at = MIN(trial_ends_at, unlocked_at)
+          WHERE status = 'paid' AND id NOT IN (SELECT device_id FROM pauzo_purchases)`
+  },
   {
     sql: `CREATE TABLE IF NOT EXISTS pauzo_counters (
       key TEXT NOT NULL,

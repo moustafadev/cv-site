@@ -9,6 +9,8 @@ type Action = "unlock" | "extend_trial" | "reset_trial";
 type Stats = {
   devices: number;
   activeLast7Days: number;
+  purchases: number;
+  purchasesLast7Days: number;
   trial: number;
   expired: number;
   unlocked: number;
@@ -47,6 +49,20 @@ type Pair = {
 
 type Daily = {day: string; registered: number; unlocked: number};
 
+type Purchase = {
+  transactionId: string;
+  platform: string;
+  productId: string;
+  verified: boolean;
+  createdAt: number;
+  restores: number;
+  restoredAt: number;
+  deviceId: string;
+  deviceLocale: string;
+  deviceAppVersion: string;
+  deviceLastSeenAt: number;
+};
+
 type Payload = {
   ok: boolean;
   configured?: boolean;
@@ -54,6 +70,7 @@ type Payload = {
   daily?: Daily[];
   pairs?: Pair[];
   devices?: Device[];
+  purchases?: Purchase[];
   error?: string;
 };
 
@@ -222,9 +239,15 @@ export default function AdminPauzoPage() {
           <section className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
             <StatCard label="Installs" value={stats.devices} hint={`${stats.activeLast7Days} active in 7 days`} />
             <StatCard
-              label="Unlocked"
-              value={stats.unlocked + stats.paid}
-              hint={`${pct(stats.unlocked + stats.paid, stats.devices)} of installs · ${stats.paid} paid`}
+              label="Paid"
+              value={stats.purchases}
+              hint={`${stats.purchasesLast7Days} in 7 days · ${pct(stats.purchases, stats.devices)} of installs`}
+              tone="sky"
+            />
+            <StatCard
+              label="Unlocked by a friend"
+              value={stats.unlocked}
+              hint={`${pct(stats.unlocked, stats.devices)} of installs`}
               tone="emerald"
             />
             <StatCard label="On trial" value={stats.trial} hint="still has days left" tone="amber" />
@@ -243,6 +266,8 @@ export default function AdminPauzoPage() {
             />
             <StatCard label="AI questions today" value={stats.aiQuestionsToday} hint="all devices" />
           </section>
+
+          <PurchasesSection rows={data?.purchases ?? []} />
 
           {data?.daily ? <DailyChart rows={data.daily} /> : null}
 
@@ -443,6 +468,7 @@ function Shell({children, actions}: {children: React.ReactNode; actions?: React.
 
 const TONE: Record<string, string> = {
   slate: "text-slate-50",
+  sky: "text-sky-300",
   emerald: "text-emerald-300",
   amber: "text-amber-300",
   rose: "text-rose-300"
@@ -515,6 +541,68 @@ function DailyChart({rows}: {rows: Daily[]}) {
             {i % 2 === 0 ? r.day.slice(5) : ""}
           </span>
         ))}
+      </div>
+    </section>
+  );
+}
+
+/** One row per buyer: the store order, when it was bought, and the install
+ * that holds it now (a reinstall + «restore purchase» moves it). */
+function PurchasesSection({rows}: {rows: Purchase[]}) {
+  return (
+    <section className="glass-card mt-8 p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-lg font-semibold text-sky-200">Purchases</h2>
+        <p className="text-xs text-slate-400">One-time unlock, verified with the store.</p>
+      </div>
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full min-w-[720px] text-left text-sm">
+          <thead>
+            <tr className="border-b border-slate-700 text-slate-400">
+              <th className="py-2 pr-3">Order</th>
+              <th className="py-2 pr-3">Bought</th>
+              <th className="py-2 pr-3">Current device</th>
+              <th className="py-2 pr-3">Last seen</th>
+              <th className="py-2">Restores</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="py-4 text-slate-500">
+                  No purchases yet.
+                </td>
+              </tr>
+            ) : (
+              rows.map((p) => (
+                <tr key={`${p.platform}:${p.transactionId}`} className="border-b border-slate-800/80 align-top">
+                  <td className="py-2 pr-3">
+                    <span className="font-mono text-slate-100" title={p.transactionId}>
+                      {p.transactionId.length > 28 ? `${p.transactionId.slice(0, 28)}…` : p.transactionId}
+                    </span>
+                    <div className="text-xs text-slate-500">
+                      {p.platform} · {p.productId} {p.verified ? "· verified" : ""}
+                    </div>
+                  </td>
+                  <td className="py-2 pr-3 text-slate-300">{fmtDate(p.createdAt)}</td>
+                  <td className="py-2 pr-3 text-slate-300">
+                    <span className="font-mono" title={p.deviceId}>
+                      {shortId(p.deviceId)}
+                    </span>
+                    <div className="text-xs text-slate-500">
+                      {[p.deviceLocale, p.deviceAppVersion].filter(Boolean).join(" · ") || "—"}
+                    </div>
+                  </td>
+                  <td className="py-2 pr-3 text-slate-300">{ago(p.deviceLastSeenAt)}</td>
+                  <td className="py-2 text-slate-300">
+                    {p.restores}
+                    {p.restoredAt ? <div className="text-xs text-slate-500">last {fmtDate(p.restoredAt)}</div> : null}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
     </section>
   );

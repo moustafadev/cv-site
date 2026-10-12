@@ -20,10 +20,10 @@ export type ParseInput = {
   today: string;
 };
 
-const SYSTEM = `You read one money movement written by a user of a personal budgeting app in Egypt (it may be Egyptian Arabic, English or Russian, a spoken sentence, a pasted bank/wallet SMS, or a photo of a receipt) and return it as JSON.
+const SYSTEM = `You read one money movement written by a user of a personal budgeting app used in Europe, the US and the Middle East (any language: a spoken sentence, a pasted bank, card or wallet notification, or a photo of a receipt) and return it as JSON.
 Return exactly: {"type":"income"|"expense","amount":number,"category":string,"date":"yyyy-MM-dd"|null,"note":string}
-- amount: the money that moved, a positive number in the message's currency. Never a balance, card number, phone number or reference id. For a receipt, the grand total.
-- category (expenses only, use "other" for income): shopping = groceries, supermarket, food delivery, clothes, everyday buying; travel = transport, Uber, fuel, trips, restaurants, cafes, outings; education = courses, school, books; home = rent, utilities, internet, phone bills, home repairs; health = doctor, pharmacy, medicine, gym; subscriptions = Netflix, Shahid, Spotify, Anghami, YouTube Premium, ChatGPT, Claude, Gemini, iCloud, Google One, app stores, game passes and other monthly digital services; other = anything else.
+- amount: the money that moved, a positive number in the message's currency, rounded to whole units. Never a balance, available credit, card number, phone number or reference id. For a receipt, the grand total. Read European 1.234,56 and US 1,234.56 correctly.
+- category (expenses only, use "other" for income): shopping = groceries, supermarket (Walmart, Target, Tesco, Lidl, Aldi, Carrefour...), food delivery, clothes, everyday buying; travel = transport, Uber, Lyft, fuel, parking, trips, restaurants, cafes, outings; education = courses, school, tuition, books; home = rent, mortgage, utilities, internet, phone bills, insurance, home repairs; health = doctor, pharmacy, medicine; subscriptions = streaming (Netflix, Hulu, Max, Disney+, Spotify...), AI and software (ChatGPT, Claude, Microsoft 365, Adobe...), cloud storage, gym memberships, Uber One, DashPass, Patreon and any other recurring membership; other = anything else.
 - date: only if the message names a date or says yesterday etc.; otherwise null. Today is given.
 - note: 1-4 words naming the merchant or what it was, in the user's language. No amounts.
 If there is no money amount at all, return {"amount":0}.`;

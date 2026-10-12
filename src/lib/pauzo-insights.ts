@@ -41,6 +41,11 @@ const LANGUAGE_NAMES: Record<string, string> = {
   "ar-EG": "Egyptian Arabic (colloquial, as spoken in Cairo)",
   ar: "Modern Standard Arabic",
   en: "English",
+  "en-GB": "British English",
+  de: "German (informal du)",
+  fr: "French (informal tu)",
+  es: "Spanish (informal tú)",
+  it: "Italian (informal tu)",
   ru: "Russian"
 };
 

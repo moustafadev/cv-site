@@ -1,7 +1,7 @@
 import {askGemini, type GeminiPart} from "@/lib/pauzo-insights";
 
 /** Categories the app knows; anything else from the model becomes "other". */
-export const PARSE_CATEGORIES = ["shopping", "travel", "education", "home", "health", "other"] as const;
+export const PARSE_CATEGORIES = ["shopping", "travel", "education", "home", "health", "subscriptions", "other"] as const;
 export type ParseCategory = (typeof PARSE_CATEGORIES)[number];
 
 export type ParsedOperation = {
@@ -23,7 +23,7 @@ export type ParseInput = {
 const SYSTEM = `You read one money movement written by a user of a personal budgeting app in Egypt (it may be Egyptian Arabic, English or Russian, a spoken sentence, a pasted bank/wallet SMS, or a photo of a receipt) and return it as JSON.
 Return exactly: {"type":"income"|"expense","amount":number,"category":string,"date":"yyyy-MM-dd"|null,"note":string}
 - amount: the money that moved, a positive number in the message's currency. Never a balance, card number, phone number or reference id. For a receipt, the grand total.
-- category (expenses only, use "other" for income): shopping = groceries, supermarket, food delivery, clothes, everyday buying; travel = transport, Uber, fuel, trips, restaurants, cafes, outings; education = courses, school, books; home = rent, utilities, internet, phone bills, home repairs; health = doctor, pharmacy, medicine, gym; other = anything else.
+- category (expenses only, use "other" for income): shopping = groceries, supermarket, food delivery, clothes, everyday buying; travel = transport, Uber, fuel, trips, restaurants, cafes, outings; education = courses, school, books; home = rent, utilities, internet, phone bills, home repairs; health = doctor, pharmacy, medicine, gym; subscriptions = Netflix, Shahid, Spotify, Anghami, YouTube Premium, ChatGPT, Claude, Gemini, iCloud, Google One, app stores, game passes and other monthly digital services; other = anything else.
 - date: only if the message names a date or says yesterday etc.; otherwise null. Today is given.
 - note: 1-4 words naming the merchant or what it was, in the user's language. No amounts.
 If there is no money amount at all, return {"amount":0}.`;

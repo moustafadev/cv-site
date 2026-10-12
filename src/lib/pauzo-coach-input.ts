@@ -4,7 +4,7 @@ import {cleanString, pauzoError} from "@/lib/pauzo-request";
 
 /** Validates and caps what the app sends to the coach. */
 
-const CATEGORY_KEYS = new Set(["shopping", "travel", "education", "home", "health", "other"]);
+const CATEGORY_KEYS = new Set(["shopping", "travel", "education", "home", "health", "subscriptions", "other"]);
 const MAX_OPERATIONS = 300;
 const MAX_HISTORY = 6;
 export const MAX_CHAT_MESSAGES = 12;

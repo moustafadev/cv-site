@@ -14,7 +14,7 @@ export const MAX_MEMBERS = 4;
 export const MAX_SYNC_CHANGES = 200;
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-const CATEGORIES = new Set(["shopping", "travel", "education", "home", "health", "other"]);
+const CATEGORIES = new Set(["shopping", "travel", "education", "home", "health", "subscriptions", "other"]);
 
 /** [key] prefixes the ids of that member's operations in a sync. */
 export type HouseholdMember = {key: string; name: string; isMe: boolean; joinedAt: number};

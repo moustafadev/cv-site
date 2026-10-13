@@ -1,7 +1,7 @@
 import type {ReactNode} from "react";
 
 export const LEGAL_CONTACT = "mostafaomardev@gmail.com";
-export const LEGAL_UPDATED = "12 October 2026";
+export const LEGAL_UPDATED = "13 October 2026";
 
 export type LegalSection = {title: string; body: ReactNode};
 

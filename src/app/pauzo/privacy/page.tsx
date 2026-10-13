@@ -43,11 +43,6 @@ const sections: LegalSection[] = [
           you pick. Sent to Google&apos;s Gemini API to produce the answer and not stored on our server. Basis: contract.
         </li>
         <li>
-          <b>Shared budget</b>, only if you start or join one: the name you show to the other members and your transactions
-          from the last three months plus repeating ones (date, type, category, amount, note, whether it repeats), kept on
-          our server so the members you invited can see them. Basis: contract.
-        </li>
-        <li>
           <b>Usage statistics</b> (Firebase Analytics): an app-instance identifier, device model, OS, language, country and
           which screens and features are used. In the EU, EEA, UK and Switzerland only with your consent (Art. 6(1)(a)),
           asked on first use and changeable anytime in Profile → Usage statistics; elsewhere on the basis of our
@@ -86,7 +81,6 @@ const sections: LegalSection[] = [
       <ul>
         <li>Device record and invite codes: while you use the app; deleted within 30 days of a request.</li>
         <li>Purchase records: as long as tax and accounting law requires.</li>
-        <li>Shared-budget data: until you leave the shared budget, then deleted.</li>
         <li>AI requests: not stored after the answer is returned.</li>
         <li>Usage statistics: 2 months. Crash reports: 90 days.</li>
       </ul>

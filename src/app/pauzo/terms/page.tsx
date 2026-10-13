@@ -47,15 +47,6 @@ const sections: LegalSection[] = [
     )
   },
   {
-    title: "Shared budget",
-    body: (
-      <p>
-        Only share a budget with people you trust. Members can see the transactions you share, including notes. Leaving
-        the shared budget removes your transactions from the others&apos; phones.
-      </p>
-    )
-  },
-  {
     title: "Your data and backups",
     body: (
       <p>

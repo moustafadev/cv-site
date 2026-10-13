@@ -1,3 +1,5 @@
+import {pauzoQuery} from "@/lib/pauzo-db";
+
 /**
  * The money coach: fixed questions (everyone) and a free chat (premium).
  * The app sends the month in numbers — plan, totals, goal, wish, limits,
@@ -163,6 +165,29 @@ export class GeminiError extends Error {
 
 const GEMINI_API = "https://generativelanguage.googleapis.com/v1beta";
 
+/** Google's free tier: requests a day per model. */
+export const GEMINI_FREE_REQUESTS_PER_MODEL = 20;
+/** The newest Flash plus the two it falls back to. */
+export const GEMINI_MODELS_TRIED = 3;
+
+/** Google's daily quota resets at midnight Pacific time, not UTC. */
+export function geminiQuotaDay(now = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {timeZone: "America/Los_Angeles"}).format(now);
+}
+
+/** Every call counts against Google's quota, failed ones included. */
+async function countGeminiRequest(model: string): Promise<void> {
+  try {
+    await pauzoQuery(
+      `INSERT INTO pauzo_counters (key, day, count) VALUES (?, ?, 1)
+        ON CONFLICT(key, day) DO UPDATE SET count = count + 1`,
+      [`gemini:${model}`, geminiQuotaDay()]
+    );
+  } catch {
+    // Only the admin page reads it; an answer never fails over the count.
+  }
+}
+
 type ModelInfo = {name?: string; supportedGenerationMethods?: string[]};
 
 const modelCache = globalThis as unknown as {__pauzoGeminiModels?: string[]};
@@ -246,20 +271,21 @@ export async function askGemini(
     "contents" in prompt ? prompt : {system: prompt.system, contents: [{role: "user" as const, parts: [{text: prompt.user}]}]};
   const key = process.env.PAUZO_GEMINI_API_KEY?.trim();
   if (!key) throw new Error("gemini_not_configured");
+  const send = async (m: string) => (await Promise.all([generate(key, m, request, options), countGeminiRequest(m)]))[0];
   let models = await resolveModels(key);
   let model = models[0];
-  let res = await generate(key, model, request, options);
+  let res = await send(model);
   // The cached model was retired since the isolate started: look again once.
   if (res.status === 404 && !process.env.PAUZO_GEMINI_MODEL?.trim()) {
     models = await resolveModels(key, true);
     model = models[0];
-    res = await generate(key, model, request, options);
+    res = await send(model);
   }
   // The newest Flash is often the busiest (503): fall back down the list.
-  for (const fallback of models.slice(1, 3)) {
+  for (const fallback of models.slice(1, GEMINI_MODELS_TRIED)) {
     if (!isBusy(res.status)) break;
     model = fallback;
-    res = await generate(key, model, request, options);
+    res = await send(model);
   }
   const json = (await res.json()) as {
     candidates?: {content?: {parts?: {text?: string; thought?: boolean}[]}; finishReason?: string}[];

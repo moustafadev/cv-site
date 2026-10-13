@@ -17,6 +17,8 @@ type Stats = {
   pairsCreated: number;
   pairsCompleted: number;
   aiQuestionsToday: number;
+  geminiToday: {model: string; count: number}[];
+  geminiDailyLimit: number;
 };
 
 type Device = {
@@ -265,6 +267,7 @@ export default function AdminPauzoPage() {
               hint="completed codes ÷ installs"
             />
             <StatCard label="AI questions today" value={stats.aiQuestionsToday} hint="all devices" />
+            <GeminiCard requests={stats.geminiToday} limit={stats.geminiDailyLimit} />
           </section>
 
           {data?.database ? <DatabaseSection db={data.database} /> : null}
@@ -483,6 +486,20 @@ function usageTone(used: number | null, limit: number): keyof typeof TONE {
   if (used == null) return "slate";
   const p = used / limit;
   return p < 0.5 ? "emerald" : p < 0.8 ? "amber" : "rose";
+}
+
+/** Requests sent to Gemini today against the free tier's daily total. */
+function GeminiCard({requests, limit}: {requests: {model: string; count: number}[]; limit: number}) {
+  const used = requests.reduce((n, r) => n + r.count, 0);
+  const perModel = requests.map((r) => `${r.model.replace(/^gemini-/, "")}: ${r.count}`).join(" · ");
+  return (
+    <StatCard
+      label="Gemini requests today"
+      value={`${used} / ${limit}`}
+      hint={`${perModel || "none yet"} — free tier, resets at midnight Pacific (≈10:00 Cairo)`}
+      tone={usageTone(used, limit)}
+    />
+  );
 }
 
 function DatabaseSection({db}: {db: DatabaseStats}) {

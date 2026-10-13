@@ -1,4 +1,5 @@
 import {bumpDailyCounter, pauzoBatch, pauzoQuery} from "@/lib/pauzo-db";
+import {GEMINI_FREE_REQUESTS_PER_MODEL, GEMINI_MODELS_TRIED, geminiQuotaDay} from "@/lib/pauzo-insights";
 import {sendPartnerJoinedPush} from "@/lib/pauzo-push";
 import type {Row} from "@/lib/blog-db";
 
@@ -308,12 +309,15 @@ export type PauzoStats = {
   pairsCreated: number;
   pairsCompleted: number;
   aiQuestionsToday: number;
+  /** Requests sent to Gemini today (Google's day), per model. */
+  geminiToday: {model: string; count: number}[];
+  geminiDailyLimit: number;
 };
 
 export async function getPauzoStats(): Promise<PauzoStats> {
   const weekAgo = nowMs() - 7 * DAY_MS;
   const today = new Date().toISOString().slice(0, 10);
-  const [devices, pairs, ai, purchases] = await pauzoBatch([
+  const [devices, pairs, ai, purchases, gemini] = await pauzoBatch([
     {
       sql: `SELECT COUNT(*) AS devices,
               SUM(CASE WHEN last_seen_at >= ? THEN 1 ELSE 0 END) AS active,
@@ -330,6 +334,10 @@ export async function getPauzoStats(): Promise<PauzoStats> {
     {
       sql: `SELECT COUNT(*) AS total, SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS recent FROM pauzo_purchases`,
       params: [weekAgo]
+    },
+    {
+      sql: `SELECT key, count FROM pauzo_counters WHERE day = ? AND key LIKE 'gemini:%' ORDER BY count DESC`,
+      params: [geminiQuotaDay()]
     }
   ]);
   const d = devices?.[0] ?? {};
@@ -344,7 +352,9 @@ export async function getPauzoStats(): Promise<PauzoStats> {
     paid: Number(d.paid ?? 0),
     pairsCreated: Number(p.created ?? 0),
     pairsCompleted: Number(p.completed ?? 0),
-    aiQuestionsToday: Number(ai?.[0]?.total ?? 0)
+    aiQuestionsToday: Number(ai?.[0]?.total ?? 0),
+    geminiToday: (gemini ?? []).map((r) => ({model: String(r.key).replace(/^gemini:/, ""), count: Number(r.count ?? 0)})),
+    geminiDailyLimit: GEMINI_FREE_REQUESTS_PER_MODEL * GEMINI_MODELS_TRIED
   };
 }
 

@@ -143,14 +143,23 @@ export function isPauzoConfigured(): boolean {
  * Atomic daily counter: returns the new count so the caller can compare it
  * with its limit. One statement, so two concurrent requests can't both pass.
  */
+/** Counters are only read for today; older rows would pile up forever. */
+const COUNTER_KEEP_DAYS = 2;
+const counterPrune = globalThis as unknown as {__pauzoCountersPrunedDay?: string};
+
 export async function bumpDailyCounter(key: string, day: string): Promise<number> {
-  const [, rows] = await pauzoBatch([
+  // Once a day per isolate, the first bump also clears counters nobody reads.
+  const prune = counterPrune.__pauzoCountersPrunedDay !== day;
+  const cutoff = new Date(Date.parse(`${day}T00:00:00Z`) - COUNTER_KEEP_DAYS * 86_400_000).toISOString().slice(0, 10);
+  const results = await pauzoBatch([
     {
       sql: `INSERT INTO pauzo_counters (key, day, count) VALUES (?, ?, 1)
         ON CONFLICT(key, day) DO UPDATE SET count = count + 1`,
       params: [key, day]
     },
-    {sql: `SELECT count FROM pauzo_counters WHERE key = ? AND day = ?`, params: [key, day]}
+    {sql: `SELECT count FROM pauzo_counters WHERE key = ? AND day = ?`, params: [key, day]},
+    ...(prune ? [{sql: `DELETE FROM pauzo_counters WHERE day < ?`, params: [cutoff]}] : [])
   ]);
-  return Number(rows?.[0]?.count ?? 0);
+  if (prune) counterPrune.__pauzoCountersPrunedDay = day;
+  return Number(results[1]?.[0]?.count ?? 0);
 }

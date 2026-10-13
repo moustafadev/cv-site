@@ -165,7 +165,7 @@ const GEMINI_API = "https://generativelanguage.googleapis.com/v1beta";
 
 type ModelInfo = {name?: string; supportedGenerationMethods?: string[]};
 
-const modelCache = globalThis as unknown as {__pauzoGeminiModel?: string};
+const modelCache = globalThis as unknown as {__pauzoGeminiModels?: string[]};
 
 function flashVersion(id: string): number | null {
   const m = /^gemini-(\d+(?:\.\d+)?)-flash$/.exec(id);
@@ -174,25 +174,31 @@ function flashVersion(id: string): number | null {
 
 /**
  * Google retires Flash versions often (2.5 started returning 404 for new
- * keys), so unless PAUZO_GEMINI_MODEL pins one, the newest stable
- * `gemini-X-flash` this key can call is looked up and kept per isolate.
+ * keys), so unless PAUZO_GEMINI_MODEL pins one, the stable `gemini-X-flash`
+ * models this key can call are looked up, newest first, and kept per isolate.
  */
-async function resolveModel(key: string, refresh = false): Promise<string> {
+async function resolveModels(key: string, refresh = false): Promise<string[]> {
   const pinned = process.env.PAUZO_GEMINI_MODEL?.trim();
-  if (pinned) return pinned;
-  if (modelCache.__pauzoGeminiModel && !refresh) return modelCache.__pauzoGeminiModel;
+  if (pinned) return [pinned];
+  if (modelCache.__pauzoGeminiModels && !refresh) return modelCache.__pauzoGeminiModels;
   const res = await fetch(`${GEMINI_API}/models?pageSize=200`, {headers: {"x-goog-api-key": key}, cache: "no-store"});
   const json = (await res.json()) as {models?: ModelInfo[]; error?: {message?: string}};
   if (!res.ok) throw new GeminiError(`models_${res.status}`, json.error?.message ?? "");
-  const best = (json.models ?? [])
+  const models = (json.models ?? [])
     .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
     .map((m) => String(m.name ?? "").replace(/^models\//, ""))
     .map((id) => ({id, version: flashVersion(id)}))
     .filter((m): m is {id: string; version: number} => m.version !== null)
-    .sort((a, b) => b.version - a.version)[0];
-  if (!best) throw new GeminiError("no_model", "no gemini-X-flash model available for this key");
-  modelCache.__pauzoGeminiModel = best.id;
-  return best.id;
+    .sort((a, b) => b.version - a.version)
+    .map((m) => m.id);
+  if (!models.length) throw new GeminiError("no_model", "no gemini-X-flash model available for this key");
+  modelCache.__pauzoGeminiModels = models;
+  return models;
+}
+
+/** Overloaded or rate limited: worth asking an older Flash instead. */
+function isBusy(status: number): boolean {
+  return status === 429 || status === 500 || status === 503;
 }
 
 function thinkingConfig(model: string): Record<string, unknown> {
@@ -240,11 +246,19 @@ export async function askGemini(
     "contents" in prompt ? prompt : {system: prompt.system, contents: [{role: "user" as const, parts: [{text: prompt.user}]}]};
   const key = process.env.PAUZO_GEMINI_API_KEY?.trim();
   if (!key) throw new Error("gemini_not_configured");
-  let model = await resolveModel(key);
+  let models = await resolveModels(key);
+  let model = models[0];
   let res = await generate(key, model, request, options);
   // The cached model was retired since the isolate started: look again once.
   if (res.status === 404 && !process.env.PAUZO_GEMINI_MODEL?.trim()) {
-    model = await resolveModel(key, true);
+    models = await resolveModels(key, true);
+    model = models[0];
+    res = await generate(key, model, request, options);
+  }
+  // The newest Flash is often the busiest (503): fall back down the list.
+  for (const fallback of models.slice(1, 3)) {
+    if (!isBusy(res.status)) break;
+    model = fallback;
     res = await generate(key, model, request, options);
   }
   const json = (await res.json()) as {

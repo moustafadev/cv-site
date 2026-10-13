@@ -61,10 +61,20 @@ type Purchase = {
   deviceLastSeenAt: number;
 };
 
+type DatabaseStats = {
+  sizeBytes: number | null;
+  tables: number | null;
+  rowsRead24h: number | null;
+  rowsWritten24h: number | null;
+  rows: {devices: number; pairs: number; purchases: number; counters: number; oldCounters: number};
+  limits: {sizeBytes: number; rowsReadPerDay: number; rowsWrittenPerDay: number};
+};
+
 type Payload = {
   ok: boolean;
   configured?: boolean;
   stats?: Stats;
+  database?: DatabaseStats | null;
   daily?: Daily[];
   pairs?: Pair[];
   devices?: Device[];
@@ -256,6 +266,8 @@ export default function AdminPauzoPage() {
             />
             <StatCard label="AI questions today" value={stats.aiQuestionsToday} hint="all devices" />
           </section>
+
+          {data?.database ? <DatabaseSection db={data.database} /> : null}
 
           <PurchasesSection rows={data?.purchases ?? []} />
 
@@ -454,6 +466,74 @@ const TONE: Record<string, string> = {
   amber: "text-amber-300",
   rose: "text-rose-300"
 };
+
+function bytes(n: number): string {
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+function share(used: number, limit: number): string {
+  const p = (used / limit) * 100;
+  return p < 0.1 ? "<0.1%" : `${p.toFixed(1)}%`;
+}
+
+/** Green while under half the free limit, amber to 80%, red beyond. */
+function usageTone(used: number | null, limit: number): keyof typeof TONE {
+  if (used == null) return "slate";
+  const p = used / limit;
+  return p < 0.5 ? "emerald" : p < 0.8 ? "amber" : "rose";
+}
+
+function DatabaseSection({db}: {db: DatabaseStats}) {
+  const {limits, rows} = db;
+  return (
+    <section className="glass-card mt-8 p-5">
+      <h2 className="text-lg font-semibold text-sky-200">Database</h2>
+      <p className="mt-1 text-xs text-slate-500">
+        Size and usage cover the whole D1 database (the site&apos;s tables too); limits are Cloudflare&apos;s free plan.
+      </p>
+      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <StatCard
+          label="Size"
+          value={db.sizeBytes == null ? "—" : bytes(db.sizeBytes)}
+          hint={db.sizeBytes == null ? "API can't read it" : `${share(db.sizeBytes, limits.sizeBytes)} of ${bytes(limits.sizeBytes)}`}
+          tone={usageTone(db.sizeBytes, limits.sizeBytes)}
+        />
+        <StatCard
+          label="Rows read · 24h"
+          value={db.rowsRead24h == null ? "—" : db.rowsRead24h.toLocaleString()}
+          hint={
+            db.rowsRead24h == null
+              ? "token lacks Analytics read"
+              : `${share(db.rowsRead24h, limits.rowsReadPerDay)} of ${limits.rowsReadPerDay.toLocaleString()} a day`
+          }
+          tone={usageTone(db.rowsRead24h, limits.rowsReadPerDay)}
+        />
+        <StatCard
+          label="Rows written · 24h"
+          value={db.rowsWritten24h == null ? "—" : db.rowsWritten24h.toLocaleString()}
+          hint={
+            db.rowsWritten24h == null
+              ? "token lacks Analytics read"
+              : `${share(db.rowsWritten24h, limits.rowsWrittenPerDay)} of ${limits.rowsWrittenPerDay.toLocaleString()} a day`
+          }
+          tone={usageTone(db.rowsWritten24h, limits.rowsWrittenPerDay)}
+        />
+        <StatCard label="Tables" value={db.tables ?? "—"} hint="whole database" />
+        <StatCard label="Device rows" value={rows.devices.toLocaleString()} hint="pauzo_devices" />
+        <StatCard label="Invite code rows" value={rows.pairs.toLocaleString()} hint="pauzo_pairs" />
+        <StatCard label="Purchase rows" value={rows.purchases.toLocaleString()} hint="pauzo_purchases" />
+        <StatCard
+          label="Counter rows"
+          value={rows.counters.toLocaleString()}
+          hint={`${rows.oldCounters.toLocaleString()} older than 2 days — never read again`}
+          tone={rows.oldCounters > 10_000 ? "rose" : "slate"}
+        />
+      </div>
+    </section>
+  );
+}
 
 function StatCard({
   label,

@@ -360,14 +360,72 @@ async function askWorkersAi(
   }
 }
 
+/**
+ * Groq runs the same GPT-OSS model with its own free allowance (about 1,000
+ * requests a day), so it takes over when Workers AI is out or slow.
+ */
+const GROQ_API = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODEL = "openai/gpt-oss-120b";
+// Workers AI may already have used 15 s of the app's 40.
+const GROQ_TIMEOUT_MS = 12_000;
+
+async function askGroq(
+  request: {system: string; contents: GeminiContent[]},
+  options: GeminiOptions
+): Promise<string | null> {
+  const key = process.env.PAUZO_GROQ_API_KEY?.trim();
+  const textOnly = request.contents.every((c) => c.parts.every((p) => "text" in p));
+  if (!key || !textOnly) return null;
+  const messages = [
+    {role: "system", content: request.system},
+    ...request.contents.map((c) => ({
+      role: c.role === "model" ? "assistant" : "user",
+      content: c.parts.map((p) => ("text" in p ? p.text : "")).join("\n")
+    }))
+  ];
+  try {
+    void countAiRequest(`groq:${GROQ_MODEL.split("/").pop()}`);
+    const res = await fetch(GROQ_API, {
+      method: "POST",
+      headers: {Authorization: `Bearer ${key}`, "Content-Type": "application/json"},
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages,
+        temperature: options.temperature ?? 0.4,
+        // Its reasoning counts against this too.
+        max_completion_tokens: Math.max(options.maxOutputTokens ?? 1500, 800),
+        reasoning_effort: "low",
+        ...(options.json ? {response_format: {type: "json_object"}} : {})
+      }),
+      signal: AbortSignal.timeout(GROQ_TIMEOUT_MS),
+      cache: "no-store"
+    });
+    if (!res.ok) {
+      console.error("[pauzo:groq]", res.status);
+      return null;
+    }
+    const json = (await res.json()) as {choices?: {message?: {content?: string}}[]};
+    const text = json.choices?.[0]?.message?.content?.trim();
+    return text || null;
+  } catch (error) {
+    console.error("[pauzo:groq]", error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
 export async function askGemini(
   prompt: {system: string; user: string} | {system: string; contents: GeminiContent[]},
   options: GeminiOptions = {}
 ): Promise<string> {
   const request =
     "contents" in prompt ? prompt : {system: prompt.system, contents: [{role: "user" as const, parts: [{text: prompt.user}]}]};
-  const viaWorkers = await askWorkersAi(request, options);
-  if (viaWorkers) return options.json ? viaWorkers : plainText(viaWorkers);
+  // PAUZO_AI_PRIMARY=groq puts Groq first, e.g. when Workers AI is slow.
+  const providers =
+    process.env.PAUZO_AI_PRIMARY?.trim() === "groq" ? [askGroq, askWorkersAi] : [askWorkersAi, askGroq];
+  for (const ask of providers) {
+    const text = await ask(request, options);
+    if (text) return options.json ? text : plainText(text);
+  }
   const key = process.env.PAUZO_GEMINI_API_KEY?.trim();
   if (!key) throw new Error("gemini_not_configured");
   const send = async (m: string) => (await Promise.all([generate(key, m, request, options), countGeminiRequest(m)]))[0];

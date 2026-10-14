@@ -20,6 +20,7 @@ type Stats = {
   geminiToday: {model: string; count: number}[];
   geminiDailyLimit: number;
   workersAiToday: number;
+  groqToday: number;
 };
 
 type Device = {
@@ -273,6 +274,12 @@ export default function AdminPauzoPage() {
               value={stats.workersAiToday}
               hint="answers first (GPT-OSS); free daily allowance on Cloudflare"
               tone="emerald"
+            />
+            <StatCard
+              label="Groq today"
+              value={`${stats.groqToday} / 1000`}
+              hint="second choice (same GPT-OSS); free tier"
+              tone={usageTone(stats.groqToday, 1000)}
             />
             <GeminiCard requests={stats.geminiToday} limit={stats.geminiDailyLimit} />
           </section>

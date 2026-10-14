@@ -20,13 +20,15 @@ export type ParseInput = {
   today: string;
 };
 
-const SYSTEM = `You read one money movement written by a user of a personal budgeting app used in Europe, the US and the Middle East (any language: a spoken sentence, a pasted bank, card or wallet notification, or a photo of a receipt) and return it as JSON.
-Return exactly: {"type":"income"|"expense","amount":number,"category":string,"date":"yyyy-MM-dd"|null,"note":string}
-- amount: the money that moved, a positive number in the message's currency, rounded to whole units. Never a balance, available credit, card number, phone number or reference id. For a receipt, the grand total. Read European 1.234,56 and US 1,234.56 correctly.
-- category (expenses only, use "other" for income): shopping = groceries, supermarket (Walmart, Target, Tesco, Lidl, Aldi, Carrefour...), food delivery, clothes, everyday buying; travel = transport, Uber, Lyft, fuel, parking, trips, restaurants, cafes, outings; education = courses, school, tuition, books; home = rent, mortgage, utilities, internet, phone bills, insurance, home repairs; health = doctor, pharmacy, medicine; subscriptions = streaming (Netflix, Hulu, Max, Disney+, Spotify...), AI and software (ChatGPT, Claude, Microsoft 365, Adobe...), cloud storage, gym memberships, Uber One, DashPass, Patreon and any other recurring membership; other = anything else.
+const SYSTEM = `You read money movements written by a user of a personal budgeting app used in Europe, the US and the Middle East (any language: a spoken sentence, a pasted bank, card or wallet notification, or a photo of a receipt) and return them as JSON.
+Return exactly: {"operations":[{"type":"income"|"expense","amount":number,"category":string,"date":"yyyy-MM-dd"|null,"note":string}]}
+- operations: one entry per separate purchase or payment the user names ("I bought fruit for 500 and a car for 3000" is two). A bank notification or a receipt is one operation (the receipt's grand total). Never add separate purchases together.
+- amount: the money that moved, a positive number in the message's currency, rounded to whole units. Never a balance, available credit, card number, phone number or reference id. Read European 1.234,56 and US 1,234.56 correctly.
+- Speech recognition often writes spoken Arabic numbers oddly: "خمس 100" is 500, "تلات 100" is 300, "ثلاثة آلاف" is 3000, "ميتين وخمسين" is 250. Read the number the speaker meant.
+- category (expenses only, use "other" for income): shopping = groceries, fruit and vegetables, supermarket (Walmart, Target, Tesco, Lidl, Aldi, Carrefour...), food delivery, clothes, electronics, everyday buying; travel = transport, cars and car costs, Uber, Lyft, fuel, parking, trips, restaurants, cafes, outings; education = courses, school, tuition, books; home = rent, mortgage, utilities, internet, phone bills and top-ups, insurance, home repairs; health = doctor, pharmacy, medicine; subscriptions = streaming (Netflix, Hulu, Max, Disney+, Spotify...), AI and software (ChatGPT, Claude, Microsoft 365, Adobe...), cloud storage, gym memberships, Uber One, DashPass, Patreon and any other recurring membership; other = anything else.
 - date: only if the message names a date or says yesterday etc.; otherwise null. Today is given.
 - note: 1-4 words naming the merchant or what it was, in the user's language. No amounts.
-If there is no money amount at all, return {"amount":0}.`;
+If there is no money amount at all, return {"operations":[]}.`;
 
 function clean(value: unknown): ParsedOperation | null {
   if (!value || typeof value !== "object") return null;
@@ -40,17 +42,26 @@ function clean(value: unknown): ParsedOperation | null {
   return {type, amount, category: type === "income" ? "other" : category, date, note};
 }
 
-export async function parseOperation(input: ParseInput): Promise<ParsedOperation | null> {
+/** At most this many from one message; more is a list, not a sentence. */
+const MAX_OPERATIONS = 10;
+
+export async function parseOperations(input: ParseInput): Promise<ParsedOperation[]> {
   const parts: GeminiPart[] = [{text: `Today: ${input.today}. Language: ${input.locale}.`}];
   if (input.text) parts.push({text: `Message:\n${input.text}`});
   if (input.image) parts.push({inline_data: {mime_type: input.image.mimeType, data: input.image.base64}});
   const raw = await askGemini(
     {system: SYSTEM, contents: [{role: "user", parts}]},
-    {json: true, temperature: 0, maxOutputTokens: 512}
+    {json: true, temperature: 0, maxOutputTokens: 1024}
   );
   try {
-    return clean(JSON.parse(raw.replace(/^```(?:json)?\s*|\s*```$/g, "")));
+    const json = JSON.parse(raw.replace(/^```(?:json)?\s*|\s*```$/g, "")) as {operations?: unknown};
+    // A model that answers with the old single object still counts.
+    const list = Array.isArray(json.operations) ? json.operations : [json];
+    return list
+      .map(clean)
+      .filter((o): o is ParsedOperation => o !== null)
+      .slice(0, MAX_OPERATIONS);
   } catch {
-    return null;
+    return [];
   }
 }

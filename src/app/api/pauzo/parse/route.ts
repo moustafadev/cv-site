@@ -1,7 +1,7 @@
 import {NextResponse} from "next/server";
 import {consumeAiQuota, getEntitlement, refundAiQuota} from "@/lib/pauzo";
 import {coachError} from "@/lib/pauzo-coach-input";
-import {parseOperation} from "@/lib/pauzo-parse";
+import {parseOperations} from "@/lib/pauzo-parse";
 import {cleanString, readJson, requireDevice} from "@/lib/pauzo-request";
 
 // A phone photo compressed by the app is ~200-400KB as base64.
@@ -34,9 +34,9 @@ export async function POST(request: Request) {
     if (!(await consumeAiQuota(device, entitlement.premium))) {
       return NextResponse.json({ok: false, error: "daily_limit", entitlement}, {status: 429});
     }
-    let operation;
+    let operations;
     try {
-      operation = await parseOperation({
+      operations = await parseOperations({
         text: text || undefined,
         image,
         locale: cleanString(raw.locale, 20) || "ar-EG",
@@ -46,12 +46,18 @@ export async function POST(request: Request) {
       await refundAiQuota(device);
       throw error;
     }
-    if (!operation) {
+    if (!operations.length) {
       // Nothing readable: don't charge for it.
       await refundAiQuota(device);
       return NextResponse.json({ok: false, error: "not_understood", entitlement: await getEntitlement(device)}, {status: 422});
     }
-    return NextResponse.json({ok: true, operation, entitlement: await getEntitlement(device)});
+    // `operation` keeps apps from before multi-operation replies working.
+    return NextResponse.json({
+      ok: true,
+      operations,
+      operation: operations[0],
+      entitlement: await getEntitlement(device)
+    });
   } catch (error) {
     return coachError(error);
   }

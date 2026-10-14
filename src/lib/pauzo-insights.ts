@@ -1,3 +1,4 @@
+import {getCloudflareContext} from "@opennextjs/cloudflare";
 import {pauzoQuery} from "@/lib/pauzo-db";
 
 /**
@@ -176,12 +177,16 @@ export function geminiQuotaDay(now = new Date()): string {
 }
 
 /** Every call counts against Google's quota, failed ones included. */
-async function countGeminiRequest(model: string): Promise<void> {
+function countGeminiRequest(model: string): Promise<void> {
+  return countAiRequest(`gemini:${model}`);
+}
+
+async function countAiRequest(key: string): Promise<void> {
   try {
     await pauzoQuery(
       `INSERT INTO pauzo_counters (key, day, count) VALUES (?, ?, 1)
         ON CONFLICT(key, day) DO UPDATE SET count = count + 1`,
-      [`gemini:${model}`, geminiQuotaDay()]
+      [key, geminiQuotaDay()]
     );
   } catch {
     // Only the admin page reads it; an answer never fails over the count.
@@ -263,12 +268,92 @@ async function generate(
   });
 }
 
+/**
+ * Cloudflare Workers AI runs next to this Worker and has a free daily
+ * allowance, so it answers first; Gemini is the fallback. GPT-OSS gave the
+ * best Egyptian Arabic of the models tried, usually in 2–7 s.
+ */
+const WORKERS_AI_MODEL = "@cf/openai/gpt-oss-120b";
+// It sometimes queues for over a minute; the app gives up at 40 s, so
+// leave room for Gemini after it.
+const WORKERS_AI_TIMEOUT_MS = 15_000;
+
+type WorkersAi = {run: (model: string, input: Record<string, unknown>) => Promise<unknown>};
+
+function workersAi(): WorkersAi | null {
+  try {
+    return (getCloudflareContext().env as {AI?: WorkersAi}).AI ?? null;
+  } catch {
+    // `next dev` without the Cloudflare runtime.
+    return null;
+  }
+}
+
+/** Text only (it can't read receipts); null hands the request to Gemini. */
+async function askWorkersAi(
+  request: {system: string; contents: GeminiContent[]},
+  options: GeminiOptions
+): Promise<string | null> {
+  const ai = workersAi();
+  const textOnly = request.contents.every((c) => c.parts.every((p) => "text" in p));
+  if (!ai || !textOnly) return null;
+  const input = request.contents.map((c) => ({
+    role: c.role === "model" ? "assistant" : "user",
+    content: c.parts.map((p) => ("text" in p ? p.text : "")).join("\n")
+  }));
+  const instructions = options.json
+    ? `${request.system}\n\nReply with one JSON object only, no other text.`
+    : request.system;
+  try {
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), WORKERS_AI_TIMEOUT_MS));
+    const run = ai.run(WORKERS_AI_MODEL, {
+      instructions,
+      input,
+      // Its reasoning counts against this too.
+      max_output_tokens: Math.max(options.maxOutputTokens ?? 1500, 800),
+      reasoning: {effort: "low"},
+      temperature: options.temperature ?? 0.4
+    });
+    void countAiRequest(`wai:${WORKERS_AI_MODEL.split("/").pop()}`);
+    const result = (await Promise.race([run, timeout])) as {
+      response?: string;
+      output?: {content?: {type?: string; text?: string}[]}[];
+    } | null;
+    if (!result) return null;
+    const text = (
+      result.response ??
+      (result.output ?? [])
+        .flatMap((o) => o.content ?? [])
+        .filter((c) => c.type === "output_text" || c.type === "text")
+        .map((c) => c.text ?? "")
+        .join("")
+    ).trim();
+    if (!text) return null;
+    if (options.json) {
+      // Only a reply that really is JSON counts; anything else goes to Gemini.
+      const json = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
+      try {
+        JSON.parse(json);
+        return json;
+      } catch {
+        return null;
+      }
+    }
+    return text;
+  } catch (error) {
+    console.error("[pauzo:workers-ai]", error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
 export async function askGemini(
   prompt: {system: string; user: string} | {system: string; contents: GeminiContent[]},
   options: GeminiOptions = {}
 ): Promise<string> {
   const request =
     "contents" in prompt ? prompt : {system: prompt.system, contents: [{role: "user" as const, parts: [{text: prompt.user}]}]};
+  const viaWorkers = await askWorkersAi(request, options);
+  if (viaWorkers) return viaWorkers;
   const key = process.env.PAUZO_GEMINI_API_KEY?.trim();
   if (!key) throw new Error("gemini_not_configured");
   const send = async (m: string) => (await Promise.all([generate(key, m, request, options), countGeminiRequest(m)]))[0];

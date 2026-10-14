@@ -17,6 +17,10 @@
   "images": {
     "binding": "IMAGES"
   },
+  // Workers AI: Ask Pauzo answers here first, Gemini is the fallback.
+  "ai": {
+    "binding": "AI"
+  },
   "observability": {
     "enabled": true
   },

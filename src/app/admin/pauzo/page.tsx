@@ -19,6 +19,7 @@ type Stats = {
   aiQuestionsToday: number;
   geminiToday: {model: string; count: number}[];
   geminiDailyLimit: number;
+  workersAiToday: number;
 };
 
 type Device = {
@@ -267,6 +268,12 @@ export default function AdminPauzoPage() {
               hint="completed codes ÷ installs"
             />
             <StatCard label="AI questions today" value={stats.aiQuestionsToday} hint="all devices" />
+            <StatCard
+              label="Workers AI today"
+              value={stats.workersAiToday}
+              hint="answers first (GPT-OSS); free daily allowance on Cloudflare"
+              tone="emerald"
+            />
             <GeminiCard requests={stats.geminiToday} limit={stats.geminiDailyLimit} />
           </section>
 
@@ -496,7 +503,7 @@ function GeminiCard({requests, limit}: {requests: {model: string; count: number}
     <StatCard
       label="Gemini requests today"
       value={`${used} / ${limit}`}
-      hint={`${perModel || "none yet"} — free tier, resets at midnight Pacific (≈10:00 Cairo)`}
+      hint={`${perModel || "none yet"} — fallback only; free tier, resets at midnight Pacific (≈10:00 Cairo)`}
       tone={usageTone(used, limit)}
     />
   );

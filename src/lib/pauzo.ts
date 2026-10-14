@@ -312,6 +312,8 @@ export type PauzoStats = {
   /** Requests sent to Gemini today (Google's day), per model. */
   geminiToday: {model: string; count: number}[];
   geminiDailyLimit: number;
+  /** Requests answered first by Cloudflare Workers AI today. */
+  workersAiToday: number;
 };
 
 export async function getPauzoStats(): Promise<PauzoStats> {
@@ -336,7 +338,7 @@ export async function getPauzoStats(): Promise<PauzoStats> {
       params: [weekAgo]
     },
     {
-      sql: `SELECT key, count FROM pauzo_counters WHERE day = ? AND key LIKE 'gemini:%' ORDER BY count DESC`,
+      sql: `SELECT key, count FROM pauzo_counters WHERE day = ? AND (key LIKE 'gemini:%' OR key LIKE 'wai:%') ORDER BY count DESC`,
       params: [geminiQuotaDay()]
     }
   ]);
@@ -353,7 +355,12 @@ export async function getPauzoStats(): Promise<PauzoStats> {
     pairsCreated: Number(p.created ?? 0),
     pairsCompleted: Number(p.completed ?? 0),
     aiQuestionsToday: Number(ai?.[0]?.total ?? 0),
-    geminiToday: (gemini ?? []).map((r) => ({model: String(r.key).replace(/^gemini:/, ""), count: Number(r.count ?? 0)})),
+    geminiToday: (gemini ?? [])
+      .filter((r) => String(r.key).startsWith("gemini:"))
+      .map((r) => ({model: String(r.key).replace(/^gemini:/, ""), count: Number(r.count ?? 0)})),
+    workersAiToday: (gemini ?? [])
+      .filter((r) => String(r.key).startsWith("wai:"))
+      .reduce((n, r) => n + Number(r.count ?? 0), 0),
     geminiDailyLimit: GEMINI_FREE_REQUESTS_PER_MODEL * GEMINI_MODELS_TRIED
   };
 }

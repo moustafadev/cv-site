@@ -289,6 +289,20 @@ function workersAi(): WorkersAi | null {
   }
 }
 
+/**
+ * The app shows answers as plain text, but models still write Markdown now
+ * and then: drop bold and headings, and turn list dashes into bullets.
+ */
+export function plainText(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/__(.+?)__/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^(\s*)[-*]\s+/gm, "$1• ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 /** Text only (it can't read receipts); null hands the request to Gemini. */
 async function askWorkersAi(
   request: {system: string; contents: GeminiContent[]},
@@ -353,7 +367,7 @@ export async function askGemini(
   const request =
     "contents" in prompt ? prompt : {system: prompt.system, contents: [{role: "user" as const, parts: [{text: prompt.user}]}]};
   const viaWorkers = await askWorkersAi(request, options);
-  if (viaWorkers) return viaWorkers;
+  if (viaWorkers) return options.json ? viaWorkers : plainText(viaWorkers);
   const key = process.env.PAUZO_GEMINI_API_KEY?.trim();
   if (!key) throw new Error("gemini_not_configured");
   const send = async (m: string) => (await Promise.all([generate(key, m, request, options), countGeminiRequest(m)]))[0];
@@ -383,5 +397,5 @@ export async function askGemini(
     .join("")
     .trim();
   if (!text) throw new GeminiError("empty", `${model}: ${json.candidates?.[0]?.finishReason ?? "no_candidates"}`);
-  return text;
+  return options.json ? text : plainText(text);
 }

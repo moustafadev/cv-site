@@ -254,7 +254,7 @@ export default function AdminPauzoPage() {
               hint={`${pct(stats.unlocked, stats.devices)} of installs`}
               tone="emerald"
             />
-            <StatCard label="Free" value={stats.free} hint="2 AI questions a day" />
+            <StatCard label="Free" value={stats.free} hint="AI questions with no daily limit" />
             <StatCard label="Codes created" value={stats.pairsCreated} hint="«Send to a friend» taps" />
             <StatCard
               label="Codes completed"

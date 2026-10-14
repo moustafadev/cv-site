@@ -4,17 +4,19 @@ import {sendPartnerJoinedPush} from "@/lib/pauzo-push";
 import type {Row} from "@/lib/blog-db";
 
 /**
- * Pauzo plans: every install is free and keeps every budgeting feature; the
- * only limit is the AI (two fixed questions a day). Premium — a verified
- * one-time purchase, or both phones of a completed invite code — opens the
- * AI chat and a much larger daily allowance. Nothing ever locks the app.
+ * Pauzo plans: every install is free and keeps every budgeting feature,
+ * the AI questions included. Premium — a verified one-time purchase, or both
+ * phones of a completed invite code — opens the AI chat. Nothing ever locks
+ * the app.
  */
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Extra installs the same code can unlock after the pair is complete (phone changes, reinstalls). */
 const MAX_RESTORES = 2;
-const DEFAULT_FREE_AI_DAILY_LIMIT = 2;
-const DEFAULT_PREMIUM_AI_DAILY_LIMIT = 30;
+// No limit users feel: this only stops a script from draining the AI
+// allowance that everyone shares.
+const DEFAULT_FREE_AI_DAILY_LIMIT = 100;
+const DEFAULT_PREMIUM_AI_DAILY_LIMIT = 100;
 
 export type DeviceStatus = "free" | "trial" | "unlocked" | "paid";
 export type EntitlementState = "free" | "unlocked" | "paid";

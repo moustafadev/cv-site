@@ -40,7 +40,8 @@ const sections: LegalSection[] = [
           <b>Ask Pauzo and AI quick add</b>, only when you use them: month totals, previous months&apos; totals, one goal or
           wish, and for the Premium chat your recent transactions (date, type, category, amount — never notes) and the
           conversation; for quick add, the sentence or bank message you choose to send; for receipt reading, the photo
-          you pick. Sent to Google&apos;s Gemini API to produce the answer and not stored on our server. Basis: contract.
+          you pick. Sent to an AI provider to produce the answer — Cloudflare Workers AI first, then Groq or Google&apos;s
+          Gemini API if it is unavailable (receipt photos go to Gemini) — and not stored on our server. Basis: contract.
         </li>
         <li>
           <b>Usage statistics</b> (Firebase Analytics): an app-instance identifier, device model, OS, language, country and
@@ -65,8 +66,8 @@ const sections: LegalSection[] = [
       <>
         <p>
           Google (Firebase Analytics, Crashlytics, Cloud Messaging, Gemini API, Google Play billing), Apple (App Store
-          purchases) and Cloudflare (our server and database). They act as processors under data processing terms and may
-          process data in the United States and other countries.
+          purchases), Cloudflare (our server, database and Workers AI) and Groq (AI answers). They act as processors under
+          data processing terms and may process data in the United States and other countries.
         </p>
         <p>
           Transfers out of the EU/EEA and UK rely on the EU-U.S. Data Privacy Framework (and its UK extension) where the

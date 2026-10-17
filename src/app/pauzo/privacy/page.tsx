@@ -88,6 +88,26 @@ const sections: LegalSection[] = [
     )
   },
   {
+    title: "How to delete your data",
+    id: "delete-data",
+    body: (
+      <>
+        <p>
+          <b>On your phone:</b> open Pauzo → Profile → Reset all data, or uninstall the app. Your plan, transactions,
+          notes, goals, limits, name, reminders and chat history are deleted at once; nothing of it is kept on our
+          server.
+        </p>
+        <p>
+          <b>On our server:</b> only a device record (a random ID, language, app version, invite code and today&apos;s AI
+          count) and, if you bought Premium, the store&apos;s purchase record. To have them deleted, email{" "}
+          <b>{LEGAL_CONTACT}</b> with the subject «Delete my Pauzo data». The device record is not linked to your name or
+          email, so tell us roughly when you installed Pauzo and on which phone, and we will find and delete it within 30
+          days. Purchase records are kept only as long as tax law requires.
+        </p>
+      </>
+    )
+  },
+  {
     title: "Your rights",
     body: (
       <>

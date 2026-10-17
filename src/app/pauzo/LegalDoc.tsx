@@ -3,7 +3,8 @@ import type {ReactNode} from "react";
 export const LEGAL_CONTACT = "mostafaomardev@gmail.com";
 export const LEGAL_UPDATED = "17 October 2026";
 
-export type LegalSection = {title: string; body: ReactNode};
+/** [id] makes the section linkable, e.g. Google Play's data-deletion link. */
+export type LegalSection = {title: string; body: ReactNode; id?: string};
 
 /** Plain, readable layout shared by the Pauzo privacy policy and terms. */
 export function LegalDoc({title, intro, sections}: {title: string; intro: ReactNode; sections: LegalSection[]}) {
@@ -15,7 +16,7 @@ export function LegalDoc({title, intro, sections}: {title: string; intro: ReactN
         <p className="mt-1 text-sm text-[#777FA8]">Last updated: {LEGAL_UPDATED}</p>
         <div className="mt-5 space-y-3 text-[15px] leading-relaxed text-[#2A2F5A]">{intro}</div>
         {sections.map((s, i) => (
-          <section key={s.title} className="mt-8">
+          <section key={s.title} id={s.id} className="mt-8 scroll-mt-6">
             <h2 className="text-lg font-bold">
               {i + 1}. {s.title}
             </h2>

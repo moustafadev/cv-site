@@ -1,7 +1,7 @@
 import {NextResponse} from "next/server";
 import {deletePost, getPostById, normalizePostInput, updatePost} from "@/lib/blog";
 import {isUniqueViolation} from "@/lib/blog-db";
-import {blogErrorResponse} from "@/lib/blog-request";
+import {adminBlogErrorResponse} from "@/lib/blog-request";
 import {requireAdmin} from "@/lib/require-admin";
 
 type Ctx = {params: Promise<{id: string}>};
@@ -15,7 +15,7 @@ export async function GET(_request: Request, {params}: Ctx) {
     if (!post) return NextResponse.json({ok: false, error: "not_found"}, {status: 404});
     return NextResponse.json({ok: true, post});
   } catch (error) {
-    return blogErrorResponse(error);
+    return adminBlogErrorResponse(error);
   }
 }
 
@@ -31,7 +31,7 @@ export async function PUT(request: Request, {params}: Ctx) {
     return NextResponse.json({ok: true, post});
   } catch (error) {
     if (isUniqueViolation(error)) return NextResponse.json({ok: false, error: "slug_taken"}, {status: 409});
-    return blogErrorResponse(error);
+    return adminBlogErrorResponse(error);
   }
 }
 
@@ -43,6 +43,6 @@ export async function DELETE(_request: Request, {params}: Ctx) {
     await deletePost(id);
     return NextResponse.json({ok: true});
   } catch (error) {
-    return blogErrorResponse(error);
+    return adminBlogErrorResponse(error);
   }
 }

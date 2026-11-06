@@ -73,7 +73,12 @@ async function fetchPage(url: string, timeoutMs = 12_000): Promise<string> {
   }
   if (res.status === 404 || res.status === 410) throw new LinkedInImportError("not_found");
   if (!res.ok || /authwall|\/login|checkpoint/.test(res.url)) throw new LinkedInImportError("blocked");
-  return res.text();
+  try {
+    return await res.text();
+  } catch {
+    // LinkedIn sometimes accepts the connection and drops it mid-body.
+    throw new LinkedInImportError("blocked");
+  }
 }
 
 type JsonLdPost = {articleBody?: string; datePublished?: string; author?: {name?: string}; image?: {url?: string} | {url?: string}[]};
@@ -159,7 +164,12 @@ async function resolveShortPostLink(input: string): Promise<string> {
   const location = res.headers.get("location");
   if (location) return new URL(location, "https://lnkd.in").toString();
   if (res.status === 404) throw new LinkedInImportError("not_found");
-  const html = await res.text();
+  let html: string;
+  try {
+    html = await res.text();
+  } catch {
+    throw new LinkedInImportError("blocked");
+  }
   const target = /href="(https:\/\/[a-z.]*linkedin\.com\/(?:posts|feed\/update)\/[^"]+)"/.exec(html);
   if (!target) throw new LinkedInImportError("invalid_url");
   return decodeEntities(target[1]!);

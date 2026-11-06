@@ -1,6 +1,6 @@
 import {NextResponse} from "next/server";
 import {findPostIdByLinkedInActivity, uniqueSlug} from "@/lib/blog";
-import {blogErrorResponse} from "@/lib/blog-request";
+import {adminBlogErrorResponse} from "@/lib/blog-request";
 import {fetchLinkedInPost, LinkedInImportError, linkedInPostToDraft} from "@/lib/linkedin-import";
 import {requireAdmin} from "@/lib/require-admin";
 
@@ -22,6 +22,6 @@ export async function POST(request: Request) {
     if (error instanceof LinkedInImportError) {
       return NextResponse.json({ok: false, error: `linkedin_${error.code}`}, {status: error.code === "invalid_url" ? 400 : 502});
     }
-    return blogErrorResponse(error);
+    return adminBlogErrorResponse(error);
   }
 }

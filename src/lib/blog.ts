@@ -371,7 +371,13 @@ export async function findPostIdByLinkedInActivity(activityId: string): Promise<
 
 /** `slug`, or `slug-2`, `slug-3`… — the first one no post uses yet. */
 export async function uniqueSlug(slug: string): Promise<string> {
-  const rows = await blogQuery(`SELECT slug FROM blog_posts WHERE slug = ? OR slug LIKE ?`, [slug, `${slug}-%`]);
+  // substr() rather than `LIKE 'slug-%'`: D1 rejects LIKE patterns longer than 50 characters
+  // ("LIKE or GLOB pattern too complex"), and slugs made from post titles run well past that.
+  const rows = await blogQuery(`SELECT slug FROM blog_posts WHERE slug = ? OR substr(slug, 1, ?) = ?`, [
+    slug,
+    slug.length + 1,
+    `${slug}-`
+  ]);
   const taken = new Set(rows.map((r) => str(r.slug)));
   if (!taken.has(slug)) return slug;
   let n = 2;

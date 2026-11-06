@@ -1,7 +1,7 @@
 import {NextResponse} from "next/server";
 import {createPost, listAllPosts, listRecentComments, normalizePostInput} from "@/lib/blog";
 import {hasBlogStore, isUniqueViolation} from "@/lib/blog-db";
-import {blogErrorResponse} from "@/lib/blog-request";
+import {adminBlogErrorResponse} from "@/lib/blog-request";
 import {requireAdmin} from "@/lib/require-admin";
 
 export async function GET() {
@@ -12,7 +12,7 @@ export async function GET() {
     const [posts, comments] = await Promise.all([listAllPosts(), listRecentComments()]);
     return NextResponse.json({ok: true, configured: true, posts, comments});
   } catch (error) {
-    return blogErrorResponse(error);
+    return adminBlogErrorResponse(error);
   }
 }
 
@@ -26,6 +26,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ok: true, post});
   } catch (error) {
     if (isUniqueViolation(error)) return NextResponse.json({ok: false, error: "slug_taken"}, {status: 409});
-    return blogErrorResponse(error);
+    return adminBlogErrorResponse(error);
   }
 }

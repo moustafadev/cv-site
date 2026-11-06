@@ -51,6 +51,13 @@ const ERRORS: Record<string, string> = {
   unauthorized: "Session expired — log in again at /admin."
 };
 
+/** Known code → readable sentence; anything else falls back to the server's own message. */
+function errorText(json: {error?: string; detail?: string}, fallback: string): string {
+  const known = ERRORS[json.error ?? ""];
+  if (known) return known;
+  return json.detail || json.error || fallback;
+}
+
 function toDraft(post: BlogPost): Draft {
   return {
     id: post.id,
@@ -106,9 +113,9 @@ export default function AdminBlogPage() {
         setState("unauthorized");
         return;
       }
-      const json = (await res.json()) as {ok: boolean; configured?: boolean; posts?: PostSummary[]; comments?: AdminComment[]; error?: string};
+      const json = (await res.json()) as {ok: boolean; configured?: boolean; posts?: PostSummary[]; comments?: AdminComment[]; error?: string; detail?: string};
       if (!json.ok) {
-        setError(ERRORS[json.error ?? ""] ?? json.error ?? "Failed to load");
+        setError(errorText(json, "Failed to load"));
         return;
       }
       setConfigured(json.configured !== false);
@@ -168,9 +175,9 @@ export default function AdminBlogPage() {
         credentials: "include",
         body: JSON.stringify({url: importUrl})
       });
-      const json = (await res.json()) as {ok: boolean; error?: string; existingId?: string; draft?: ImportedDraft; author?: string; imageCount?: number};
+      const json = (await res.json()) as {ok: boolean; error?: string; detail?: string; existingId?: string; draft?: ImportedDraft; author?: string; imageCount?: number};
       if (!json.ok) {
-        setError(ERRORS[json.error ?? ""] ?? json.error ?? "Import failed");
+        setError(errorText(json, "Import failed"));
         return;
       }
       setImportOpen(false);
@@ -202,9 +209,9 @@ export default function AdminBlogPage() {
     setNotice(null);
     try {
       const res = await fetch(`/api/admin/blog/${id}`, {credentials: "include"});
-      const json = (await res.json()) as {ok: boolean; post?: BlogPost; error?: string};
+      const json = (await res.json()) as {ok: boolean; post?: BlogPost; error?: string; detail?: string};
       if (!json.ok || !json.post) {
-        setError(ERRORS[json.error ?? ""] ?? "Failed to open post");
+        setError(errorText(json, "Failed to open post"));
         return;
       }
       setDraft(toDraft(json.post));
@@ -236,9 +243,9 @@ export default function AdminBlogPage() {
         credentials: "include",
         body: JSON.stringify(payload)
       });
-      const json = (await res.json()) as {ok: boolean; post?: BlogPost; error?: string};
+      const json = (await res.json()) as {ok: boolean; post?: BlogPost; error?: string; detail?: string};
       if (!json.ok || !json.post) {
-        setError(ERRORS[json.error ?? ""] ?? json.error ?? "Save failed");
+        setError(errorText(json, "Save failed"));
         return;
       }
       setDraft(toDraft(json.post));

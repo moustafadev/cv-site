@@ -161,7 +161,7 @@ export async function blogBatch(stmts: Stmt[]): Promise<Row[][]> {
   return store.batch(stmts);
 }
 
-export async function blogQuery(sql: string, params?: string[]): Promise<Row[]> {
+export async function blogQuery(sql: string, params?: Stmt["params"]): Promise<Row[]> {
   const [rows] = await blogBatch([{sql, params}]);
   return rows ?? [];
 }

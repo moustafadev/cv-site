@@ -528,8 +528,10 @@ export async function listDevices(filter: AdminDeviceFilter, query: string): Pro
   const q = query.trim();
   if (q) {
     const code = normalizeCode(q);
-    where.push(code ? "(id LIKE ? OR pair_code = ?)" : "id LIKE ?");
-    params.push(`${q.toLowerCase()}%`);
+    // substr() rather than `LIKE 'q%'`: D1 rejects LIKE patterns longer than 50 characters.
+    const prefix = q.toLowerCase();
+    where.push(code ? "(substr(lower(id), 1, ?) = ? OR pair_code = ?)" : "substr(lower(id), 1, ?) = ?");
+    params.push(prefix.length, prefix);
     if (code) params.push(code);
   }
   const rows = await pauzoQuery(

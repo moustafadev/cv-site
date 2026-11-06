@@ -307,11 +307,13 @@ export async function d1GetVisits(
     params.push(String(Math.floor(filter.since)));
   }
   if (filter.q) {
-    const like = `%${filter.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    // instr() rather than LIKE: D1 caps LIKE patterns at 50 characters, and it also makes % and _
+    // literal, so the search box no longer needs escaping. lower() keeps it case-insensitive like LIKE.
+    const needle = filter.q.toLowerCase();
     where.push(
-      "(path LIKE ? ESCAPE '\\' OR COALESCE(referrer, '') LIKE ? ESCAPE '\\' OR COALESCE(user_agent, '') LIKE ? ESCAPE '\\' OR COALESCE(ref_host, '') LIKE ? ESCAPE '\\')"
+      "(instr(lower(path), ?) > 0 OR instr(lower(COALESCE(referrer, '')), ?) > 0 OR instr(lower(COALESCE(user_agent, '')), ?) > 0 OR instr(lower(COALESCE(ref_host, '')), ?) > 0)"
     );
-    params.push(like, like, like, like);
+    params.push(needle, needle, needle, needle);
   }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
   const offset = Math.max(0, Math.floor(filter.offset ?? 0));

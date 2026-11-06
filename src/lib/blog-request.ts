@@ -11,6 +11,19 @@ export function blogErrorResponse(error: unknown): NextResponse {
   return NextResponse.json({ok: false, error: "server_error"}, {status: 500});
 }
 
+/**
+ * Same, but for admin-only routes: it also returns the message. Visitors still get the bare
+ * "server_error" above — only someone already logged in sees why a request failed.
+ */
+export function adminBlogErrorResponse(error: unknown): NextResponse {
+  if (error instanceof BlogNotConfiguredError) {
+    return NextResponse.json({ok: false, error: "blog_not_configured"}, {status: 503});
+  }
+  console.error("[blog]", error);
+  const detail = (error instanceof Error ? error.message : String(error)).slice(0, 300);
+  return NextResponse.json({ok: false, error: "server_error", detail}, {status: 500});
+}
+
 /** Anonymous per-browser id so a visitor can like once and delete their own comments. */
 export const VISITOR_COOKIE = "blog_vid";
 const VISITOR_PATTERN = /^[0-9a-f-]{36}$/;

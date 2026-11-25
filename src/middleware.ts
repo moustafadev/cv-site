@@ -45,6 +45,22 @@ function countryRedirect(request: NextRequest): NextResponse | null {
   return response;
 }
 
+/**
+ * www is not a second site. Without this, www.mostafaomar.tech serves a full copy whose canonical,
+ * Open Graph and sitemap URLs all point at www, so search engines see two sites and split the credit
+ * between them. 308 keeps the method, and Google treats it as permanent just like a 301.
+ */
+function wwwRedirect(request: NextRequest): NextResponse | null {
+  const hostname = (request.headers.get("host") ?? "").split(":")[0]!.toLowerCase();
+  if (!hostname.startsWith("www.")) return null;
+  const url = request.nextUrl.clone();
+  url.hostname = hostname.slice(4);
+  return NextResponse.redirect(url, 308);
+}
+
+/** Files served by their own route handlers: next-intl must not rewrite them under a locale. */
+const LOCALE_FREE_PATHS = new Set(["/robots.txt", "/sitemap.xml", "/llms.txt"]);
+
 /** /en/… moved to unprefixed URLs for good: 308 (permanent), where next-intl on its own would answer 307. */
 function legacyDefaultLocaleRedirect(request: NextRequest): NextResponse | null {
   const {pathname} = request.nextUrl;
@@ -56,15 +72,22 @@ function legacyDefaultLocaleRedirect(request: NextRequest): NextResponse | null 
 }
 
 export default function middleware(request: NextRequest) {
+  const canonicalHost = wwwRedirect(request);
+  if (canonicalHost) return canonicalHost;
   if (isWeddingPath(request.nextUrl.pathname)) {
     return new NextResponse(null, {status: 404});
   }
+  // Matched only so the www redirect above covers them; they pass through otherwise.
+  if (LOCALE_FREE_PATHS.has(request.nextUrl.pathname)) return NextResponse.next();
   return legacyDefaultLocaleRedirect(request) ?? countryRedirect(request) ?? intlMiddleware(request);
 }
 
 export const config = {
   matcher: [
     "/((?!api|_next|_vercel|admin|pauzo|.*\\..*).*)",
+    "/robots.txt",
+    "/sitemap.xml",
+    "/llms.txt",
     "/wedding",
     "/wedding/:path*",
     "/admin/wedding",

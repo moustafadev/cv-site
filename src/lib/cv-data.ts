@@ -24,7 +24,7 @@ export function cvData(locale: Locale) {
   const stats = [
     {value: "30+", label: isEn ? "Apps shipped" : "Выпущено приложений"},
     {value: "200K+", label: isEn ? "Downloads" : "Загрузок"},
-    {value: "4+", label: isEn ? "Years experience" : "Лет опыта"}
+    {value: "5", label: isEn ? "Years experience" : "Лет опыта"}
   ];
 
   const ticker = isEn
@@ -50,8 +50,8 @@ export function cvData(locale: Locale) {
       ];
 
   const about = isEn
-    ? "Software engineer with 4+ years building and maintaining 30+ mobile apps across fintech, healthcare, fitness and e-commerce — 10 of them live on the stores with over 200,000 downloads. Strongest where Flutter meets native: Swift, Kotlin and Java bridging, BLE device communication and WebRTC video. I rebuilt a native iOS and Android medical app as a single Flutter codebase in 8 months, and I design and ship the backends my own products run on: TypeScript on Cloudflare Workers with D1 (SQLite), REST APIs, session auth, in-app purchase verification and LLM integrations."
-    : "Инженер-программист с опытом более 4 лет: создал и поддерживаю 30+ мобильных приложений в сферах финтеха, здравоохранения, фитнеса и e-commerce — 10 из них опубликованы в сторах и собрали более 200 000 загрузок. Сильнее всего там, где Flutter встречается с нативным кодом: мосты на Swift, Kotlin и Java, работа с BLE-устройствами и видеосвязь на WebRTC. Переписал нативное iOS- и Android-приложение для медицины в единую Flutter-кодовую базу за 8 месяцев. Кроме мобильной части проектирую и запускаю бэкенды собственных продуктов: TypeScript на Cloudflare Workers с D1 (SQLite), REST API, сессионная авторизация, проверка внутренних покупок и интеграции с LLM.";
+    ? "Software engineer with 5 years building and maintaining 30+ mobile apps across fintech, healthcare, fitness and e-commerce — 10 of them live on the stores with over 200,000 downloads. Strongest where Flutter meets native: Swift, Kotlin and Java bridging, BLE device communication and WebRTC video. I rebuilt a native iOS and Android medical app as a single Flutter codebase in 8 months, and I design and ship the backends my own products run on: TypeScript on Cloudflare Workers with D1 (SQLite), REST APIs, session auth, in-app purchase verification and LLM integrations."
+    : "Инженер-программист с опытом 5 лет: создал и поддерживаю 30+ мобильных приложений в сферах финтеха, здравоохранения, фитнеса и e-commerce — 10 из них опубликованы в сторах и собрали более 200 000 загрузок. Сильнее всего там, где Flutter встречается с нативным кодом: мосты на Swift, Kotlin и Java, работа с BLE-устройствами и видеосвязь на WebRTC. Переписал нативное iOS- и Android-приложение для медицины в единую Flutter-кодовую базу за 8 месяцев. Кроме мобильной части проектирую и запускаю бэкенды собственных продуктов: TypeScript на Cloudflare Workers с D1 (SQLite), REST API, сессионная авторизация, проверка внутренних покупок и интеграции с LLM.";
 
   const education = {
     degree: isEn ? "Bachelor of Software Engineering" : "Бакалавр по специальности «Программная инженерия»",

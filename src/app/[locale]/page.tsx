@@ -48,7 +48,7 @@ function faqFor(locale: Locale): {q: string; a: string}[] {
     return [
       {
         q: "Кто такой Мустафа Омар?",
-        a: "Мустафа Омар — инженер-программист из Каира (Египет), работает удалённо, опыт более 4 лет. Создал и поддерживает 30+ мобильных приложений в сферах финтеха, здравоохранения, фитнеса и e-commerce; 10 из них опубликованы в App Store и Google Play и собрали более 200 000 загрузок. Пишет на Flutter с нативными интеграциями на Swift, Kotlin и Java, а также сам разрабатывает бэкенды на TypeScript."
+        a: "Мустафа Омар — инженер-программист из Каира (Египет), работает удалённо, опыт 5 лет. Создал и поддерживает 30+ мобильных приложений в сферах финтеха, здравоохранения, фитнеса и e-commerce; 10 из них опубликованы в App Store и Google Play и собрали более 200 000 загрузок. Пишет на Flutter с нативными интеграциями на Swift, Kotlin и Java, а также сам разрабатывает бэкенды на TypeScript."
       },
       {
         q: "Можно ли нанять Мустафу Омара?",
@@ -79,7 +79,7 @@ function faqFor(locale: Locale): {q: string; a: string}[] {
   return [
     {
       q: "Who is Mostafa Omar?",
-      a: "Mostafa Omar is a software engineer based in Cairo, Egypt, working remotely, with 4+ years of experience. He has built and maintained 30+ mobile apps across fintech, healthcare, fitness and e-commerce; 10 are live on the App Store and Google Play with over 200,000 downloads. He works in Flutter with native Swift, Kotlin and Java integrations, and also builds his own TypeScript backends."
+      a: "Mostafa Omar is a software engineer based in Cairo, Egypt, working remotely, with 5 years of experience. He has built and maintained 30+ mobile apps across fintech, healthcare, fitness and e-commerce; 10 are live on the App Store and Google Play with over 200,000 downloads. He works in Flutter with native Swift, Kotlin and Java integrations, and also builds his own TypeScript backends."
     },
     {
       q: "Is Mostafa Omar available for hire?",
@@ -182,8 +182,8 @@ export default async function Home({params}: {params: Promise<{locale: string}>}
             </h2>
             <p className="mt-6 max-w-xl text-lg leading-8 text-white/60">
               {isEn
-                ? "4+ years and 30+ production apps in Flutter, with native Swift, Kotlin and Java, BLE and WebRTC — and the TypeScript backends behind my own products."
-                : "4+ года и 30+ продакшн-приложений на Flutter, с нативными Swift, Kotlin и Java, BLE и WebRTC — и бэкенды на TypeScript для собственных продуктов."}
+                ? "5 years and 30+ production apps in Flutter, with native Swift, Kotlin and Java, BLE and WebRTC — and the TypeScript backends behind my own products."
+                : "5 лет и 30+ продакшн-приложений на Flutter, с нативными Swift, Kotlin и Java, BLE и WebRTC — и бэкенды на TypeScript для собственных продуктов."}
             </p>
 
             <ul className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-x-6">

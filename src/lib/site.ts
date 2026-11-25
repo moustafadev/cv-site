@@ -17,8 +17,8 @@ export const PROFILE_IMAGE = "/profile-mostafa.png";
 
 /** The frozen one-liner: use this exact sentence on LinkedIn, GitHub and any bio too. */
 export const ONE_LINER: Record<Locale, string> = {
-  en: "Mostafa Omar is a software engineer with 4+ years building production iOS and Android apps with Flutter — 30+ apps and over 200,000 downloads — specializing in native Swift, Kotlin and Java integrations, BLE and WebRTC, and building the TypeScript backends his own products run on.",
-  ru: "Мустафа Омар — инженер-программист с опытом более 4 лет: создаёт продакшн-приложения для iOS и Android на Flutter (30+ приложений, более 200 000 загрузок), специализируется на нативных интеграциях Swift, Kotlin и Java, BLE и WebRTC и сам пишет бэкенды на TypeScript для своих продуктов."
+  en: "Mostafa Omar is a software engineer with 5 years building production iOS and Android apps with Flutter — 30+ apps and over 200,000 downloads — specializing in native Swift, Kotlin and Java integrations, BLE and WebRTC, and building the TypeScript backends his own products run on.",
+  ru: "Мустафа Омар — инженер-программист с опытом 5 лет: создаёт продакшн-приложения для iOS и Android на Flutter (30+ приложений, более 200 000 загрузок), специализируется на нативных интеграциях Swift, Kotlin и Java, BLE и WebRTC и сам пишет бэкенды на TypeScript для своих продуктов."
 };
 
 export const JOB_TITLE: Record<Locale, string> = {

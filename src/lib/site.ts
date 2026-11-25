@@ -15,6 +15,14 @@ export const LINKEDIN_URL = "https://www.linkedin.com/in/mostafa-omar-418622170"
 export const SAME_AS = [GITHUB_URL, LINKEDIN_URL];
 export const PROFILE_IMAGE = "/profile-mostafa.png";
 
+/**
+ * The one address this site is published at. Canonical URLs, hreflang, the sitemap, JSON-LD, share
+ * links and /llms.txt are all built from it, so it must never follow the host a request happened to
+ * arrive on — www.mostafaomar.tech would otherwise advertise itself as a second, competing site.
+ * NEXT_PUBLIC_SITE_URL still overrides it if the domain ever changes.
+ */
+export const CANONICAL_ORIGIN = "https://mostafaomar.tech";
+
 /** The frozen one-liner: use this exact sentence on LinkedIn, GitHub and any bio too. */
 export const ONE_LINER: Record<Locale, string> = {
   en: "Mostafa Omar is a software engineer with 5 years building production iOS and Android apps with Flutter — 30+ apps and over 200,000 downloads — specializing in native Swift, Kotlin and Java integrations, BLE and WebRTC, and building the TypeScript backends his own products run on.",

@@ -2,6 +2,7 @@ import type {Metadata} from "next";
 import {headers} from "next/headers";
 import {defaultLocale, localePath, locales, type Locale} from "@/i18n/routing";
 import {
+  CANONICAL_ORIGIN,
   EMAIL,
   GITHUB_URL,
   JOB_TITLE,
@@ -22,6 +23,8 @@ import {
 export async function siteOrigin(): Promise<string> {
   const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, "");
   if (fromEnv) return fromEnv;
+  // Only `next dev` follows the request host, so local pages link to localhost instead of production.
+  if (process.env.NODE_ENV !== "development") return CANONICAL_ORIGIN;
   const h = await headers();
   const host = h.get("x-forwarded-host") || h.get("host") || "localhost:3000";
   const proto = h.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");

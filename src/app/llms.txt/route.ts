@@ -43,7 +43,7 @@ export async function GET() {
     "## Projects",
     "",
     ...cv.projects.map((p) => {
-      const store = p.playUrl || p.appStoreUrl;
+      const store = p.playUrl || p.appStoreUrl || p.siteUrl;
       return store ? `- [${p.name}](${store}): ${oneLine(p.desc)}` : `- ${p.name} (private): ${oneLine(p.desc)}`;
     }),
     "",

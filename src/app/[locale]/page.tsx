@@ -24,7 +24,7 @@ import {isLocale, type Locale} from "@/i18n/routing";
 import {BLOG_PATH} from "@/lib/blog-constants";
 import {absoluteUrl, buildPageMetadata, faqJsonLd, personId, personJsonLd, siteOrigin, websiteId, websiteJsonLd} from "@/lib/seo";
 import {cvData} from "@/lib/cv-data";
-import {EMAIL, GITHUB_URL as GITHUB, JOB_TITLE, LINKEDIN_URL as LINKEDIN, ONE_LINER, PERSON_NAME, PERSON_NAME_RU, PHONE} from "@/lib/site";
+import {EMAIL, GITHUB_URL as GITHUB, JOB_TITLE, LINKEDIN_URL as LINKEDIN, ONE_LINER, PERSON_NAME, PERSON_NAME_RU, PHONE, PHONE_ALT} from "@/lib/site";
 
 export async function generateMetadata({params}: {params: Promise<{locale: string}>}): Promise<Metadata> {
   const {locale} = await params;
@@ -48,54 +48,62 @@ function faqFor(locale: Locale): {q: string; a: string}[] {
     return [
       {
         q: "Кто такой Мустафа Омар?",
-        a: "Мустафа Омар — Flutter-разработчик из Каира (Египет) с опытом более 4 лет в создании продакшн-приложений для iOS и Android. Он разработал и поддерживал более 30 Flutter-приложений для fintech, fitness, healthcare и logistics и специализируется на BLE, WebRTC и нативных интеграциях на Swift, Kotlin и Java."
+        a: "Мустафа Омар — инженер-программист из Каира (Египет), работает удалённо, опыт более 4 лет. Создал и поддерживает 30+ мобильных приложений в сферах финтеха, здравоохранения, фитнеса и e-commerce; 10 из них опубликованы в App Store и Google Play и собрали более 200 000 загрузок. Пишет на Flutter с нативными интеграциями на Swift, Kotlin и Java, а также сам разрабатывает бэкенды на TypeScript."
       },
       {
         q: "Можно ли нанять Мустафу Омара?",
-        a: "Да. Мустафа открыт к фриланс-проектам и новым позициям; он живёт в Каире, Египет. Быстрее всего связаться с ним по почте mostafaomardev@gmail.com или через LinkedIn."
+        a: "Да. Мустафа открыт к фриланс-проектам и новым позициям, работает удалённо из Каира (Египет). Быстрее всего связаться по почте mostafaomardev@gmail.com, по телефону +20 109 493 0203 или +7 927 049 2663, либо через LinkedIn."
       },
       {
         q: "С какими технологиями работает Мустафа Омар?",
-        a: "Flutter и Dart для кросс-платформенных приложений iOS и Android; Swift, Kotlin и Java для нативных интеграций через MethodChannel, EventChannel и JNI; Riverpod, Bloc и GetX для управления состоянием; а также BLE, WebRTC, Firebase, REST API (Dio) и чистая архитектура (MVVM, MVC)."
+        a: "Flutter и Dart для приложений под iOS и Android; Swift, Kotlin и Java для нативных интеграций через MethodChannel, EventChannel и JNI; Riverpod, Bloc и GetX для состояния; BLE, WebRTC, WebSockets и push-уведомления; на бэкенде — TypeScript, Node.js и Next.js на Cloudflare Workers с базой D1 (SQLite); Fastlane и публикация в оба стора."
+      },
+      {
+        q: "Занимается ли Мустафа Омар бэкендом?",
+        a: "Да. Он написал бэкенд для своего приложения Pauzo и для этого сайта: Cloudflare Workers с базой D1 (SQLite), REST API, сессионная авторизация, связывание устройств, проверка внутренних покупок, push-уведомления и AI-слой с переключением между Workers AI, Groq и Gemini. Исходный код сайта открыт на GitHub."
       },
       {
         q: "Делал ли Мустафа Flutter-приложения с Bluetooth (BLE) и видеозвонками?",
-        a: "Да. В Check Point Care он переписал нативное медицинское приложение на Flutter, сохранив BLE-связь с устройствами, камеру, датчики и видеозвонки WebRTC, и написал нативный код на Swift и Java для BLE. Также он реализовал real-time чат и видеосвязь через WebRTC."
+        a: "Да. В Check Point Care он за 8 месяцев переписал нативное медицинское iOS- и Android-приложение в единую Flutter-кодовую базу, сохранив все функции камеры и датчиков, и разработал BLE-слой для собственных медицинских устройств компании на нативных Swift, Java и JNI. Там же он выпустил real-time чат и видеозвонки на WebRTC для больниц."
       },
       {
         q: "Над какими приложениями работал Мустафа?",
-        a: "Среди опубликованных приложений — PUSK, Loygift, Wheelson, K.PROFI 2.0 (приложение лояльности для пользователей Knauf), SPORTIVITY и METO в Google Play и App Store, а также VPN-приложение с нативным мостом на Swift для iOS и многовендорный маркетплейс с live-коммерцией."
+        a: "Среди опубликованных: SuperApp (СуперАп) — маркетплейс с доставкой, Pauzo — его собственное приложение для учёта расходов с AI, TicketGO.uz — билеты на мероприятия, «Особенный Наполеон» — доставка десертов, K.PROFI 2.0 для пользователей Knauf, iH.plus, TekLub Cashback, Jelesson, Sportivity, METO и ПУСК."
       },
       {
         q: "Где учился Мустафа Омар?",
-        a: "Он получил степень бакалавра по программной инженерии в Казанском национальном исследовательском техническом университете им. А. Н. Туполева (КНИТУ-КАИ), 2020–2024, и говорит на арабском (родной), русском и английском."
+        a: "Он получил степень бакалавра по программной инженерии в Казанском национальном исследовательском техническом университете им. А. Н. Туполева (КНИТУ-КАИ), 2020–2024. Языки: арабский (родной), русский (разговорный), английский (базовый)."
       }
     ];
   }
   return [
     {
       q: "Who is Mostafa Omar?",
-      a: "Mostafa Omar is a Flutter developer based in Cairo, Egypt, with 4+ years of experience building production iOS and Android apps. He has led development and support for 30+ Flutter apps across fintech, fitness, healthcare and logistics, and specializes in BLE, WebRTC and native Swift, Kotlin and Java integrations."
+      a: "Mostafa Omar is a software engineer based in Cairo, Egypt, working remotely, with 4+ years of experience. He has built and maintained 30+ mobile apps across fintech, healthcare, fitness and e-commerce; 10 are live on the App Store and Google Play with over 200,000 downloads. He works in Flutter with native Swift, Kotlin and Java integrations, and also builds his own TypeScript backends."
     },
     {
       q: "Is Mostafa Omar available for hire?",
-      a: "Yes. Mostafa is open to freelance projects and new roles and is based in Cairo, Egypt. The fastest way to reach him is by email at mostafaomardev@gmail.com or through LinkedIn."
+      a: "Yes. Mostafa is open to freelance projects and new roles, and works remotely from Cairo, Egypt. The fastest way to reach him is by email at mostafaomardev@gmail.com, by phone on +20 109 493 0203 or +7 927 049 2663, or through LinkedIn."
     },
     {
       q: "What technologies does Mostafa Omar work with?",
-      a: "Flutter and Dart for cross-platform iOS and Android apps; Swift, Kotlin and Java for native integrations via MethodChannel, EventChannel and JNI; Riverpod, Bloc and GetX for state management; plus BLE, WebRTC, Firebase, REST APIs (Dio) and clean architecture (MVVM, MVC)."
+      a: "Flutter and Dart for iOS and Android apps; Swift, Kotlin and Java for native integrations through MethodChannel, EventChannel and JNI; Riverpod, Bloc and GetX for state; BLE, WebRTC, WebSockets and push notifications; on the backend, TypeScript, Node.js and Next.js on Cloudflare Workers with a D1 (SQLite) database; plus Fastlane and publishing to both stores."
+    },
+    {
+      q: "Does Mostafa Omar do backend work?",
+      a: "Yes. He wrote the backend for his own app Pauzo and for this site: Cloudflare Workers with a D1 (SQLite) database, REST APIs, session auth, device pairing, in-app purchase verification, push notifications and an AI layer that falls back across Workers AI, Groq and Gemini. The source of this site is public on GitHub."
     },
     {
       q: "Has Mostafa built Flutter apps with Bluetooth (BLE) and video calls?",
-      a: "Yes. At Check Point Care he rebuilt a native medical app in Flutter while keeping BLE device communication, camera, sensor and WebRTC video-call integrations, writing native Swift and Java code for the BLE layer. He also implemented real-time chat and WebRTC video calling."
+      a: "Yes. At Check Point Care he rebuilt a native iOS and Android medical app as a single Flutter codebase in 8 months, keeping every camera and sensor feature, and built the BLE layer for the company's proprietary medical devices in native Swift, Java and JNI. He also shipped real-time chat and WebRTC video calls for hospitals there."
     },
     {
       q: "Which apps has Mostafa worked on?",
-      a: "Published apps include PUSK, Loygift, Wheelson, K.PROFI 2.0 (a rewards app for Knauf users), SPORTIVITY and METO on Google Play and the App Store, plus a custom VPN app with a native Swift bridge for iOS and a multi-vendor marketplace with live commerce."
+      a: "Published apps include SuperApp (СуперАп), a marketplace and delivery platform; Pauzo, his own budgeting app with an AI assistant; TicketGO.uz for event ticketing; Special Napoleon for dessert delivery; K.PROFI 2.0 for Knauf users; iH.plus; TekLub Cashback; Jelesson; Sportivity; METO; and PUSK."
     },
     {
       q: "Where did Mostafa Omar study?",
-      a: "He holds a Bachelor’s degree in Software Engineering from Kazan National Research Technical University named after A. N. Tupolev (KNRTU-KAI), 2020–2024, and speaks Arabic (native), Russian and English."
+      a: "He holds a Bachelor of Software Engineering from Kazan National Research Technical University named after A. N. Tupolev (KNRTU-KAI), 2020–2024. He speaks Arabic (native), Russian (conversational) and English (basic)."
     }
   ];
 }
@@ -169,13 +177,13 @@ export default async function Home({params}: {params: Promise<{locale: string}>}
               {isEn ? "Mostafa Omar" : "Мустафа Омар"}
             </h1>
             <h2 className="mt-5 font-display text-2xl font-medium text-accent md:text-4xl">
-              {isEn ? "Flutter Developer" : "Flutter-разработчик"}
-              <span className="text-white/40"> · {isEn ? "iOS & Android" : "iOS и Android"}</span>
+              {isEn ? "Software Engineer" : "Инженер-программист"}
+              <span className="text-white/40"> · {isEn ? "Mobile & Backend" : "Мобильная разработка и бэкенд"}</span>
             </h2>
             <p className="mt-6 max-w-xl text-lg leading-8 text-white/60">
               {isEn
-                ? "4+ years building production apps in fintech, fitness, healthcare and logistics with BLE, WebRTC and clean architecture."
-                : "4+ года создаю продакшн-приложения для fintech, fitness, healthcare и logistics с BLE, WebRTC и clean architecture."}
+                ? "4+ years and 30+ production apps in Flutter, with native Swift, Kotlin and Java, BLE and WebRTC — and the TypeScript backends behind my own products."
+                : "4+ года и 30+ продакшн-приложений на Flutter, с нативными Swift, Kotlin и Java, BLE и WebRTC — и бэкенды на TypeScript для собственных продуктов."}
             </p>
 
             <ul className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-x-6">
@@ -281,7 +289,9 @@ export default async function Home({params}: {params: Promise<{locale: string}>}
               <div>
                 <p className="text-sm font-medium uppercase tracking-[0.2em] text-accent">{isEn ? "About me" : "О себе"}</p>
                 <h2 className="mt-3 font-display text-3xl font-semibold leading-tight text-white md:text-4xl">
-                  {isEn ? "Mobile apps that ship — and keep working." : "Мобильные приложения, которые выходят в релиз и работают."}
+                  {isEn
+                    ? "Mobile apps that ship — and the backends behind them."
+                    : "Мобильные приложения, которые доходят до релиза, — и бэкенды под ними."}
                 </h2>
                 <p className="mt-5 text-base leading-8 text-white/60 md:text-lg">{about}</p>
                 <div className="mt-10 grid grid-cols-3 gap-4 border-t border-white/10 pt-8">
@@ -395,9 +405,15 @@ export default async function Home({params}: {params: Promise<{locale: string}>}
                       App Store
                     </a>
                   ) : null}
-                  {!project.playUrl && !project.appStoreUrl ? (
+                  {project.siteUrl ? (
+                    <a href={project.siteUrl} target="_blank" rel="noreferrer" className="cv-store-btn">
+                      <ArrowUpRightIcon />
+                      {project.siteLabel}
+                    </a>
+                  ) : null}
+                  {project.badge ? (
                     <span className="inline-flex items-center rounded-full border border-white/10 px-4 py-2 text-sm text-white/40">
-                      {isEn ? "Private project" : "Приватный проект"}
+                      {project.badge}
                     </span>
                   ) : null}
                 </div>
@@ -466,7 +482,7 @@ export default async function Home({params}: {params: Promise<{locale: string}>}
               </a>
             </div>
             <p className="mt-6 text-sm text-white/40">
-              {PHONE} · {isEn ? "Cairo, Egypt" : "Каир, Египет"}
+              {PHONE} · {PHONE_ALT} · {isEn ? "Cairo, Egypt · Remote" : "Каир, Египет · Удалённо"}
             </p>
           </div>
         </Reveal>
